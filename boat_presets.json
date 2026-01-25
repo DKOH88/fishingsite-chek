@@ -1,0 +1,97 @@
+{
+  "01-19": {
+    "thefishing_boats": [
+      {
+        "name": "금땡이호",
+        "mode": "monitor"
+      },
+      {
+        "name": "나폴리호",
+        "mode": "monitor"
+      },
+      {
+        "name": "블루호",
+        "mode": "monitor"
+      },
+      {
+        "name": "아일랜드호",
+        "mode": "monitor"
+      },
+      {
+        "name": "여명호",
+        "mode": "monitor"
+      },
+      {
+        "name": "오디세이호",
+        "mode": "monitor"
+      },
+      {
+        "name": "유진호",
+        "mode": "monitor"
+      },
+      {
+        "name": "천일호",
+        "mode": "monitor"
+      },
+      {
+        "name": "청광호",
+        "mode": "monitor"
+      },
+      {
+        "name": "카즈미호",
+        "mode": "monitor"
+      },
+      {
+        "name": "팀루피호",
+        "mode": "monitor"
+      },
+      {
+        "name": "아라호",
+        "mode": "monitor"
+      },
+      {
+        "name": "예린호",
+        "mode": "monitor"
+      },
+      {
+        "name": "지오디호",
+        "mode": "monitor"
+      }
+    ],
+    "sunsang24_boats": [
+      {
+        "name": "가가호",
+        "mode": "monitor"
+      },
+      {
+        "name": "기가호",
+        "mode": "monitor"
+      },
+      {
+        "name": "자이언트호",
+        "mode": "monitor"
+      },
+      {
+        "name": "도지호",
+        "mode": "monitor"
+      },
+      {
+        "name": "천마호",
+        "mode": "monitor"
+      }
+    ],
+    "target_year": "2026",
+    "target_days": {
+      "09": [
+        "1",
+        "5",
+        "6"
+      ],
+      "10": [
+        "3",
+        "4"
+      ],
+      "11": []
+    }
+  }
+}

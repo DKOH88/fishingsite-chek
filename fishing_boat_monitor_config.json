@@ -1,0 +1,433 @@
+{
+    "telegram_token": "8538517871:AAEd0Ob4O2oSk-e3NZDDfz6zSHsTf0MGD74",
+    "telegram_chat_id": "393163178",
+    "target_year": "2026",
+    "target_months": [
+        "09",
+        "10",
+        "11"
+    ],
+    "target_days": {
+        "09": [
+            "1"
+        ],
+        "10": [
+            "4"
+        ],
+        "11": [
+            "3"
+        ]
+    },
+    "check_interval_min": 5,
+    "check_interval_max": 7,
+    "headless_mode": true,
+    "current_platform": "thefishing",
+    "thefishing_boats": [
+        {
+            "name": "금땡이호",
+            "enabled": false,
+            "base_url": "http://xn--jj0bj3lvmq92n.kr/index.php",
+            "pa_n_uid": "5492",
+            "mode": "off"
+        },
+        {
+            "name": "까칠이호",
+            "enabled": false,
+            "base_url": "https://xn--hl0b209b41esvi.com/index.php",
+            "pa_n_uid": "3973",
+            "mode": "off"
+        },
+        {
+            "name": "깜보호",
+            "enabled": false,
+            "base_url": "https://winner.thefishing.kr/index.php",
+            "pa_n_uid": "3970",
+            "mode": "off"
+        },
+        {
+            "name": "나폴리호",
+            "enabled": false,
+            "base_url": "https://www.napoliho.net/index.php",
+            "pa_n_uid": "1484",
+            "mode": "off"
+        },
+        {
+            "name": "뉴신정호",
+            "enabled": false,
+            "base_url": "http://newsj.co.kr/index.php",
+            "pa_n_uid": "4452",
+            "mode": "off"
+        },
+        {
+            "name": "뉴청남호",
+            "enabled": false,
+            "base_url": "http://www.chungnamho.com/index.php",
+            "pa_n_uid": "5951",
+            "mode": "off"
+        },
+        {
+            "name": "루디호",
+            "enabled": false,
+            "base_url": "http://www.rudyfishing.com/index.php",
+            "pa_n_uid": "3468",
+            "mode": "off"
+        },
+        {
+            "name": "마그마호",
+            "enabled": false,
+            "base_url": "http://xn--2i0b07tba4320a.kr/index.php",
+            "pa_n_uid": "5352",
+            "mode": "off"
+        },
+        {
+            "name": "미라클호",
+            "enabled": false,
+            "base_url": "http://xn--2i0b07tba4320a.kr/index.php",
+            "pa_n_uid": "5361",
+            "mode": "off"
+        },
+        {
+            "name": "부흥호",
+            "enabled": false,
+            "base_url": "http://www.anhbuh.com/index.php",
+            "pa_n_uid": "2928",
+            "mode": "off"
+        },
+        {
+            "name": "블레스호",
+            "enabled": false,
+            "base_url": "http://www.blessho.com/index.php",
+            "pa_n_uid": "3288",
+            "mode": "off"
+        },
+        {
+            "name": "블루호",
+            "enabled": false,
+            "base_url": "https://bluefishing.asia/index.php",
+            "pa_n_uid": "1615",
+            "mode": "off"
+        },
+        {
+            "name": "샤크호",
+            "enabled": false,
+            "base_url": "http://www.sharkho.com/index.php",
+            "pa_n_uid": "2199",
+            "mode": "off"
+        },
+        {
+            "name": "솔티가호",
+            "enabled": false,
+            "base_url": "http://www.rudyfishing.com/index.php",
+            "pa_n_uid": "5367",
+            "mode": "off"
+        },
+        {
+            "name": "아인스호",
+            "enabled": false,
+            "base_url": "https://www.einsho.com/index.php",
+            "pa_n_uid": "349",
+            "mode": "off"
+        },
+        {
+            "name": "아일랜드호",
+            "enabled": false,
+            "base_url": "http://www.fishingi.net/index.php",
+            "pa_n_uid": "1444",
+            "mode": "off"
+        },
+        {
+            "name": "야야호",
+            "enabled": false,
+            "base_url": "http://www.yayaho.kr/index.php",
+            "pa_n_uid": "3960",
+            "mode": "off"
+        },
+        {
+            "name": "여명호",
+            "enabled": false,
+            "base_url": "http://xn--v42bv0rcoar53c6lb.kr/index.php",
+            "pa_n_uid": "5030",
+            "mode": "off"
+        },
+        {
+            "name": "오디세이호",
+            "enabled": false,
+            "base_url": "http://www.joeunfish.com/index.php",
+            "pa_n_uid": "788",
+            "mode": "off"
+        },
+        {
+            "name": "유진호",
+            "enabled": false,
+            "base_url": "https://www.eugeneho.kr/index.php",
+            "pa_n_uid": "1190",
+            "mode": "off"
+        },
+        {
+            "name": "천일호",
+            "enabled": false,
+            "base_url": "http://fishing1001.com/index.php",
+            "pa_n_uid": "1443",
+            "mode": "off"
+        },
+        {
+            "name": "청광호",
+            "enabled": false,
+            "base_url": "http://www.chungkwangho.net/index.php",
+            "pa_n_uid": "1588",
+            "mode": "off"
+        },
+        {
+            "name": "청남호",
+            "enabled": false,
+            "base_url": "http://www.chungnamho.com/index.php",
+            "pa_n_uid": "1441",
+            "mode": "off"
+        },
+        {
+            "name": "청용호",
+            "enabled": false,
+            "base_url": "http://www.changdukho.com/index.php",
+            "pa_n_uid": "271",
+            "mode": "off"
+        },
+        {
+            "name": "카즈미호",
+            "enabled": false,
+            "base_url": "https://xn--hg3b11w8xdjuj.com/index.php",
+            "pa_n_uid": "4576",
+            "mode": "off"
+        },
+        {
+            "name": "퀸블레스호",
+            "enabled": false,
+            "base_url": "http://www.blessho.com/index.php",
+            "pa_n_uid": "4675",
+            "mode": "off"
+        },
+        {
+            "name": "팀루피호",
+            "enabled": false,
+            "base_url": "https://masterfishing.kr/index.php",
+            "pa_n_uid": "2805",
+            "mode": "off"
+        },
+        {
+            "name": "팀바이트호",
+            "enabled": false,
+            "base_url": "http://teambite.kr/index.php",
+            "pa_n_uid": "5948",
+            "mode": "off"
+        },
+        {
+            "name": "페라리호",
+            "enabled": false,
+            "base_url": "http://www.xn--oi2bn5b095b4mc.com/index.php",
+            "pa_n_uid": "1264",
+            "mode": "off"
+        },
+        {
+            "name": "행운호",
+            "enabled": false,
+            "base_url": "http://www.hangwoonho.com/index.php",
+            "pa_n_uid": "3448",
+            "mode": "off"
+        },
+        {
+            "name": "헤라호",
+            "enabled": false,
+            "base_url": "https://www.ssfish.kr/index.php",
+            "pa_n_uid": "3609",
+            "mode": "off"
+        },
+        {
+            "name": "골드피싱호",
+            "enabled": false,
+            "base_url": "http://www.mscufishing.com/index.php",
+            "pa_n_uid": "2954",
+            "mode": "off"
+        },
+        {
+            "name": "뉴찬스호",
+            "enabled": false,
+            "base_url": "http://www.chanceho.com/index.php",
+            "pa_n_uid": "2283",
+            "mode": "off"
+        },
+        {
+            "name": "만석호",
+            "enabled": false,
+            "base_url": "http://www.mscufishing.com/index.php",
+            "pa_n_uid": "3570",
+            "mode": "off"
+        },
+        {
+            "name": "베스트3호",
+            "enabled": false,
+            "base_url": "https://khanfishing.com/index.php",
+            "pa_n_uid": "5340",
+            "mode": "off"
+        },
+        {
+            "name": "스타피싱호",
+            "enabled": false,
+            "base_url": "https://jstar.thefishing.kr/index.php",
+            "pa_n_uid": "1925",
+            "mode": "off"
+        },
+        {
+            "name": "승주호",
+            "enabled": false,
+            "base_url": "http://www.mscufishing.com/index.php",
+            "pa_n_uid": "2955",
+            "mode": "off"
+        },
+        {
+            "name": "아라호",
+            "enabled": false,
+            "base_url": "https://www.araho.kr/index.php",
+            "pa_n_uid": "5732",
+            "mode": "off"
+        },
+        {
+            "name": "아이리스호",
+            "enabled": false,
+            "base_url": "http://www.irisho.kr/index.php",
+            "pa_n_uid": "1545",
+            "mode": "off"
+        },
+        {
+            "name": "야호",
+            "enabled": false,
+            "base_url": "http://xn--2f5b291a.com/index.php",
+            "pa_n_uid": "3904",
+            "mode": "off"
+        },
+        {
+            "name": "예린호",
+            "enabled": false,
+            "base_url": "http://www.yerinfishing.com/index.php",
+            "pa_n_uid": "3515",
+            "mode": "off"
+        },
+        {
+            "name": "와이파이호",
+            "enabled": false,
+            "base_url": "https://khanfishing.com/index.php",
+            "pa_n_uid": "5264",
+            "mode": "off"
+        },
+        {
+            "name": "으리호",
+            "enabled": false,
+            "base_url": "http://www.mscufishing.com/index.php",
+            "pa_n_uid": "4920",
+            "mode": "off"
+        },
+        {
+            "name": "제트호",
+            "enabled": false,
+            "base_url": "https://khanfishing.com/index.php",
+            "pa_n_uid": "5341",
+            "mode": "off"
+        },
+        {
+            "name": "지오디호",
+            "enabled": false,
+            "base_url": "https://www.teamgod.kr/index.php",
+            "pa_n_uid": "5295",
+            "mode": "off"
+        },
+        {
+            "name": "짱구호",
+            "enabled": false,
+            "base_url": "http://www.ybada.com/index.php",
+            "pa_n_uid": "1677",
+            "mode": "off"
+        },
+        {
+            "name": "팀만수호",
+            "enabled": false,
+            "base_url": "https://teammansu.kr/index.php",
+            "pa_n_uid": "2829",
+            "mode": "off"
+        },
+        {
+            "name": "하와이호",
+            "enabled": true,
+            "base_url": "http://www.newhawaii.co.kr/index.php",
+            "pa_n_uid": "4667",
+            "mode": "monitor"
+        },
+        {
+            "name": "헌터호",
+            "enabled": false,
+            "base_url": "http://www.mscufishing.com/index.php",
+            "pa_n_uid": "4443",
+            "mode": "off"
+        },
+        {
+            "name": "헤르메스호",
+            "enabled": false,
+            "base_url": "http://hermes.thefishing.kr/index.php",
+            "pa_n_uid": "5579",
+            "mode": "off"
+        },
+        {
+            "name": "범블비호",
+            "enabled": true,
+            "base_url": "http://xn--xk3bm1aee249g.com/index.php",
+            "pa_n_uid": "3324",
+            "mode": "monitor"
+        }
+    ],
+    "sunsang24_boats": [
+        {
+            "name": "가가호",
+            "enabled": false,
+            "base_url": "https://gagaho.sunsang24.com",
+            "mode": "off"
+        },
+        {
+            "name": "기가호",
+            "enabled": false,
+            "base_url": "https://giga.sunsang24.com",
+            "mode": "off"
+        },
+        {
+            "name": "자이언트호",
+            "enabled": false,
+            "base_url": "https://rkclgh.sunsang24.com",
+            "mode": "off"
+        },
+        {
+            "name": "도지호",
+            "enabled": false,
+            "base_url": "https://doji.sunsang24.com",
+            "mode": "off"
+        },
+        {
+            "name": "팀에프원",
+            "enabled": false,
+            "base_url": "https://teamf.sunsang24.com",
+            "mode": "off"
+        },
+        {
+            "name": "팀에프투",
+            "enabled": false,
+            "base_url": "https://teamf.sunsang24.com",
+            "mode": "off"
+        },
+        {
+            "name": "천마호",
+            "enabled": false,
+            "base_url": "https://metafishingclub.sunsang24.com",
+            "mode": "off"
+        }
+    ],
+    "reserve_name": "dd",
+    "reserve_phone": "010-2222-3333",
+    "reserve_count": 1,
+    "test_mode": true,
+    "summary_alert": true
+}

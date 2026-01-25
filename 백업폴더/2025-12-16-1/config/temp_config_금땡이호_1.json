@@ -1,0 +1,33 @@
+{
+    "user_name": "용우",
+    "user_depositor": "김용우",
+    "user_phone": "010-5921-2879",
+    "target_date": "20251225",
+    "multi_instance": [
+        {
+            "enable": true,
+            "date": "20251214",
+            "person_count": "3"
+        },
+        {
+            "enable": true,
+            "date": "20251225",
+            "person_count": "4"
+        },
+        {
+            "enable": false,
+            "date": "20260901",
+            "person_count": "1"
+        },
+        {
+            "enable": false,
+            "date": "20260901",
+            "person_count": "1"
+        }
+    ],
+    "target_time": "09:00:00",
+    "target_ship": "",
+    "person_count": "4",
+    "test_mode": true,
+    "simulation_mode": true
+}

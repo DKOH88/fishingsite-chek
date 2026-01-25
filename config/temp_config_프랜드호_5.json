@@ -1,0 +1,58 @@
+{
+    "user_name": "오동균",
+    "user_depositor": "",
+    "user_phone": "010-2345-6149",
+    "target_date": "20261129",
+    "multi_instance": [
+        {
+            "enable": true,
+            "port": "오천항",
+            "provider": "금땡이호",
+            "date": "20261129",
+            "person_count": "2"
+        },
+        {
+            "enable": true,
+            "port": "오천항",
+            "provider": "나폴리호",
+            "date": "20261129",
+            "person_count": "1"
+        },
+        {
+            "enable": true,
+            "port": "오천항",
+            "provider": "블루호",
+            "date": "20261129",
+            "person_count": "1"
+        },
+        {
+            "enable": true,
+            "port": "오천항",
+            "provider": "오디세이호",
+            "date": "20261129",
+            "person_count": "1"
+        },
+        {
+            "enable": true,
+            "port": "오천항",
+            "provider": "카즈미호",
+            "date": "20261129",
+            "person_count": "1"
+        },
+        {
+            "enable": true,
+            "port": "오천항",
+            "provider": "프랜드호",
+            "date": "20261129",
+            "person_count": "1"
+        }
+    ],
+    "target_time": "19:59:59",
+    "person_count": "1",
+    "test_mode": true,
+    "simulation_mode": true,
+    "window_x": 1706,
+    "window_y": 720,
+    "window_width": 853,
+    "window_height": 720
+}

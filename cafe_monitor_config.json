@@ -1,0 +1,30 @@
+{
+  "cafe_url": "https://cafe.naver.com/badajd",
+  "board_url": "https://cafe.naver.com/MemoList.nhn?search.clubid=13328836&search.menuid=658&viewType=pc",
+  "keywords": [
+    "만석호",
+    "9월1일",
+    "9월 1일",
+    "제주",
+    "승리호"
+  ],
+  "telegram_bot_token": "8095952435:AAE-Xva4TTRk39GortMzOW-g96WT5_WZv8I",
+  "telegram_chat_id": "393163178",
+  "naver_id": "rednaras",
+  "naver_password": "Redskfktm7!*#",
+  "check_interval_min": 15,
+  "check_interval_max": 20,
+  "sleep_start_hour": 23,
+  "sleep_start_minute": 59,
+  "sleep_end_hour": 5,
+  "sleep_end_minute": 0,
+  "headless_mode": true,
+  "active_keywords": [
+    "만석호",
+    "9월1일",
+    "9월 1일",
+    "제주",
+    "승리호"
+  ],
+  "monitor_interval_note": "현재 사용하지 않음 - 20-30초 랜덤 간격 사용"
+}

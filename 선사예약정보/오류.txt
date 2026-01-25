@@ -1,0 +1,34 @@
+
+정상적으로 예약해 주십시오
+
+<button id="submit" type="submit" class="lar_btn f_sm">예약신청하기</button>
+예약 신청하기 하시겠습니까?
+
+예약 신청이 완료되었습니다.
+현재는 입금대기 상태입니다.
+
+
+<button type="button" class="lar_btn f_sm" onclick="window.close();">예약 창닫기</button>
+<button type="button" class="lar_btn f_sm" onclick="window.close();">예약 창닫기</button>
+
+
+STEP 01.예약1단계 STEP 02.예약확인 STEP 03.예약완료
+예약2단계입니다. 예약완료를 위해 예약 신청하기 버튼을 클릭하세요.
+<button id="submit" type="submit" class="lar_btn f_sm">예약 신청하기</button>
+
+<button id="submit" type="submit" style="width:263px; height:45px; line-height:45px; background-color:#FF0000; color:#fff; font-size:18px; font-weight:bold;cursor:pointer">예약내용확인</button>
+
+<button id="submit" type="submit" class="lar_btn f_sm">예약내용확인</button>
+
+
+'예약신청하기'를 누르고 '예약 신청하기 하시겠습니까?' 팝업창 확인을 누르고 난 뒤 결과창이  '예약 신청이 완료되었습니다' 가 나오면 예약 성공이고
+'예약신청하기'를 누렀는데 '정상적으로 예약해 주십시오' 팝업알람창이 뜨면 새로고침 후 재시도 이렇게 해야 할 것 같아
+
+<span>STEP 03.</span>
+<button id="submit" type="submit" class="lar_btn f_sm">예약 신청하기</button>
+
+예약2단계입니다
+
+팀루피호는 '예약 신청하기 하시겠습니까?' 알람팝업 확인 누르면 예약이 끝이 아니라 1단계 더 남아있어
+<span>STEP 03.</span> 이랑 '예약2단계입니다' 텍스트 확인 되면
+<button id="submit" type="submit" class="lar_btn f_sm">예약 신청하기</button> 버튼을 눌러야 해

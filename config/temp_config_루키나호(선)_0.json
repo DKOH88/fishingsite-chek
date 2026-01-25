@@ -1,0 +1,56 @@
+{
+    "target_time": "17:50:40",
+    "multi_instance": [
+        {
+            "enable": true,
+            "port": "영흥도",
+            "provider": "루키나호(선)",
+            "date": "20261231",
+            "person_count": "3",
+            "user_name": "ㅇㅇ",
+            "user_depositor": "ㅇㅇ",
+            "user_phone": "010-3527-6543"
+        },
+        {
+            "enable": false,
+            "port": "마검포항",
+            "provider": "하와이호(선)",
+            "date": "20261004",
+            "person_count": "1",
+            "user_name": "오동균",
+            "user_depositor": "오동균",
+            "user_phone": "010-2345-6149"
+        },
+        {
+            "enable": false,
+            "port": "마검포항",
+            "provider": "하와이호(선)",
+            "date": "20261004",
+            "person_count": "1",
+            "user_name": "오동균",
+            "user_depositor": "오동균",
+            "user_phone": "010-2345-6149"
+        },
+        {
+            "enable": false,
+            "port": "마검포항",
+            "provider": "하와이호(선)",
+            "date": "20261004",
+            "person_count": "1",
+            "user_name": "오동균",
+            "user_depositor": "오동균",
+            "user_phone": "010-2345-6149"
+        }
+    ],
+    "test_mode": false,
+    "simulation_mode": true,
+    "target_date": "20261231",
+    "person_count": "3",
+    "user_name": "ㅇㅇ",
+    "user_depositor": "ㅇㅇ",
+    "user_phone": "010-3527-6543",
+    "window_x": 0,
+    "window_y": 0,
+    "window_width": 1920,
+    "window_height": 1200
+}

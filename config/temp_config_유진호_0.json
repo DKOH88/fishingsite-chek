@@ -1,0 +1,56 @@
+{
+    "target_time": "13:59:59",
+    "multi_instance": [
+        {
+            "enable": true,
+            "port": "오천항",
+            "provider": "유진호",
+            "date": "20261119",
+            "person_count": "1",
+            "user_name": "ㅇㅇ",
+            "user_depositor": "",
+            "user_phone": "010-5370-5671"
+        },
+        {
+            "enable": false,
+            "port": "삼길포항",
+            "provider": "으리호(선)",
+            "date": "20500901",
+            "person_count": "4",
+            "user_name": "오동균",
+            "user_depositor": "오동균",
+            "user_phone": "010-2345-6149"
+        },
+        {
+            "enable": false,
+            "port": "삼길포항",
+            "provider": "으리호(선)",
+            "date": "20500901",
+            "person_count": "4",
+            "user_name": "오동균",
+            "user_depositor": "오동균",
+            "user_phone": "010-2345-6149"
+        },
+        {
+            "enable": false,
+            "port": "삼길포항",
+            "provider": "으리호(선)",
+            "date": "20500901",
+            "person_count": "4",
+            "user_name": "오동균",
+            "user_depositor": "오동균",
+            "user_phone": "010-2345-6149"
+        }
+    ],
+    "test_mode": true,
+    "simulation_mode": true,
+    "target_date": "20261119",
+    "person_count": "1",
+    "user_name": "ㅇㅇ",
+    "user_depositor": "",
+    "user_phone": "010-5370-5671",
+    "window_x": 0,
+    "window_y": 0,
+    "window_width": 1920,
+    "window_height": 1200
+}
