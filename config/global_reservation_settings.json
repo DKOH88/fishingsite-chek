@@ -3,22 +3,22 @@
     "multi_instance": [
         {
             "enable": true,
-            "port": "영흥도",
-            "provider": "팀만수호(선)",
-            "date": "20261017",
-            "person_count": "3",
+            "port": "오천항",
+            "provider": "금땡이호",
+            "date": "20501017",
+            "person_count": "2",
             "user_name": "신석현",
             "user_depositor": "",
             "user_phone": "010-8280-8214"
         },
         {
             "enable": false,
-            "port": "마검포항",
-            "provider": "하와이호(선)",
-            "date": "20261004",
+            "port": "안흥·신진항",
+            "provider": "마그마호",
+            "date": "20501004",
             "person_count": "1",
             "user_name": "오동균",
-            "user_depositor": "오동균",
+            "user_depositor": "",
             "user_phone": "010-2345-6149"
         },
         {
@@ -42,6 +42,6 @@
             "user_phone": "010-2345-6149"
         }
     ],
-    "test_mode": false,
-    "simulation_mode": false
+    "test_mode": true,
+    "simulation_mode": true
 }
