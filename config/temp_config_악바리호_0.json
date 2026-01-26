@@ -43,5 +43,14 @@
         }
     ],
     "test_mode": true,
-    "simulation_mode": true
+    "simulation_mode": true,
+    "target_date": "20260417",
+    "person_count": "5",
+    "user_name": "dd",
+    "user_depositor": "",
+    "user_phone": "010-3356-9487",
+    "window_x": 0,
+    "window_y": 0,
+    "window_width": 1920,
+    "window_height": 1200
 }
