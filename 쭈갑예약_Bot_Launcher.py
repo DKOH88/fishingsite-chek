@@ -673,6 +673,16 @@ class FishingLauncher:
             self.log("⚠️ 실행된 봇이 없습니다. 슬롯 체크박스를 확인해주세요.")
             messagebox.showwarning("경고", "선택된 슬롯(체크박스)이 없습니다.")
             return
+
+        # 📝 [추가] 필수 입력값 검증
+        for idx, (i, slot) in enumerate(enabled_slots):
+            u_name = slot['name'].get().strip()
+            u_phone = slot['phone'].get().strip()
+            
+            if not u_name or not u_phone or u_phone == "010-":
+                self.log(f"⚠️ Slot {i+1}: 필수 정보(이름, 전화번호) 누락")
+                messagebox.showwarning("필수 정보 누락", f"{i+1}번 슬롯의 이름과 전화번호를 입력해주세요.\n(체크박스가 활성화된 항목은 정보가 필수입니다)")
+                return
         
         # Get display size - use root window's screen dimensions
         screen_width = self.root.winfo_screenwidth()

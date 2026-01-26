@@ -6,10 +6,10 @@
             "port": "구매항",
             "provider": "악바리호",
             "date": "20260417",
-            "person_count": "5",
+            "person_count": "1",
             "user_name": "dd",
             "user_depositor": "",
-            "user_phone": "010-3356-9487"
+            "user_phone": "010-3356-"
         },
         {
             "enable": false,
@@ -45,10 +45,10 @@
     "test_mode": true,
     "simulation_mode": true,
     "target_date": "20260417",
-    "person_count": "5",
+    "person_count": "1",
     "user_name": "dd",
     "user_depositor": "",
-    "user_phone": "010-3356-9487",
+    "user_phone": "010-3356-",
     "window_x": 0,
     "window_y": 0,
     "window_width": 1920,

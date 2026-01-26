@@ -88,8 +88,7 @@ class ManseokBot(BaseFishingBot):
                     self.driver.get(url)
                     page_source = self.driver.page_source
                     current_url = self.driver.current_url
-                    
-                    # ERR_TOO_MANY_REDIRECTS 리다이렉트 에러 감지
+
                     # ERR_TOO_MANY_REDIRECTS 리다이렉트 에러 감지
                     if "ERR_TOO_MANY_REDIRECTS" in page_source or "리디렉션한 횟수가 너무 많습니다" in page_source or "waitingrequest" in current_url:
                         self.log(f"⚠️ 리다이렉트 에러 감지! 고속 복구 시도 (쿠키삭제 후 재접속)... ({attempt+1}/{max_retries})")
@@ -109,7 +108,7 @@ class ManseokBot(BaseFishingBot):
                     # Check for Server Errors
                     if "Bad Gateway" in self.driver.title:
                         self.log(f"⚠️ 서버 오류 (502). 새로고침 중... ({attempt+1}/{max_retries})")
-                        time.sleep(0.2)
+                        time.sleep(0.1)
                         continue
                     
                     # Check for error texts

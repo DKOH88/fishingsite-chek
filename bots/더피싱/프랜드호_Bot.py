@@ -86,25 +86,26 @@ class FriendBot(BaseFishingBot):
  
                     page_source = self.driver.page_source
                     current_url = self.driver.current_url
-                    
+
                     # ERR_TOO_MANY_REDIRECTS 또는 waitingrequest 리다이렉트 에러 감지
                     if "ERR_TOO_MANY_REDIRECTS" in page_source or "리디렉션한 횟수가 너무 많습니다" in page_source or "waitingrequest" in current_url:
-                        self.log(f"⚠️ 리다이렉트 에러 감지! 브라우저 재시작 중... ({attempt+1}/{max_retries})")
+                        self.log(f"⚠️ 리다이렉트 에러 감지! 고속 복구 시도 (쿠키삭제 후 재접속)... ({attempt+1}/{max_retries})")
                         try:
                             self.driver.delete_all_cookies()
-                            self.driver.quit()
-                        except:
-                            pass
-                        time.sleep(2)
-                        self.setup_driver()
-                        wait = WebDriverWait(self.driver, 30)
-                        self.driver.get(url)
-                        time.sleep(1)
+                            time.sleep(0.1) 
+                            self.driver.get(url)
+                        except Exception as e:
+                            self.log(f"⚠️ 고속 복구 실패 ({e}), 브라우저 재시작...")
+                            try: self.driver.quit()
+                            except: pass
+                            self.setup_driver()
+                            wait = WebDriverWait(self.driver, 30)
+                            self.driver.get(url)
                         continue
                     
                     if "Bad Gateway" in self.driver.title:
                         self.log(f"⚠️ 서버 오류 (502). 새로고침 중... ({attempt+1}/{max_retries})")
-                        time.sleep(0.2)
+                        time.sleep(0.1)
                         self.driver.get(url)
                         continue
                     
