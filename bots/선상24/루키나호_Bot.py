@@ -137,7 +137,7 @@ class LukinaBot(BaseFishingBot):
                         if found_btn:
                             reserve_btn = found_btn
                         else:
-                            # 못 찾았을 경우 기존 방식(Fallback) - 다만 루키나호는 이름이 겹칠 수 있으므로 주의
+                            # 못 찾았을 경우 기존 방식(Fallback) - 다만 루키나호는 이름이겹칠 수 있으므로 주의
                             reserve_btn = WebDriverWait(self.driver, 1.2).until(
                                 EC.presence_of_element_located((By.CSS_SELECTOR, f"table#{table_id} button.btn_ship_reservation"))
                             )
@@ -221,6 +221,8 @@ class LukinaBot(BaseFishingBot):
             process_start_time = time.time()
             
             try:
+                # 4.1 낚시 종류 선택
+                step_start = time.time()
                 self.log("🎣 낚시 종류 선택 중...")
                 target_keywords = ['쭈갑', '쭈꾸미', '갑오징어']
                 found_fish = False
@@ -230,7 +232,7 @@ class LukinaBot(BaseFishingBot):
                     self.log(f"🔎 Found {len(radios)} fish type options")
                     
                     if len(radios) == 1:
-                        self.log("✨ 단일 어종만 있음, 자동 선택")
+                        self.log(f"✨ 단일 어종만 있음, 자동 선택 (소요시간: {time.time()-step_start:.2f}초)")
                         self.driver.execute_script("arguments[0].click();", radios[0])
                         found_fish = True
                         time.sleep(0.01)
@@ -246,7 +248,7 @@ class LukinaBot(BaseFishingBot):
                                         parent_dt = fish_span.find_element(By.XPATH, "./ancestor::dt[@class='fishtype']")
                                         radio = parent_dt.find_element(By.CSS_SELECTOR, "input[type='radio'][name='default_schedule_no']")
                                         self.driver.execute_script("arguments[0].click();", radio)
-                                        self.log(f"✅ Selected fish type: {keyword}")
+                                        self.log(f"✅ Selected fish type: {keyword} (소요시간: {time.time()-step_start:.2f}초)")
                                         found_fish = True
                                         break
                                     except: pass
@@ -254,6 +256,7 @@ class LukinaBot(BaseFishingBot):
                         if not found_fish and radios:
                             self.log("⚠️ 키워드 매칭 없음, 첫번째 어종 선택")
                             self.driver.execute_script("arguments[0].click();", radios[0])
+                            self.log(f"✅ Default fish selected (First Option) (소요시간: {time.time()-step_start:.2f}초)")
                 except Exception as e:
                     self.log(f"⚠️ Fishing type selection error: {e}")
 
@@ -268,6 +271,8 @@ class LukinaBot(BaseFishingBot):
                         self.log("📌 좌석 선택 기능 없음 (인원만 선택)")
                 except: pass
 
+                # 4.2 인원 선택
+                step_start = time.time()
                 self.log(f"👥 인원 선택 중... ({person_count}명)")
                 try:
                     plus_btns = self.driver.find_elements(By.CSS_SELECTOR, "a.plus")
@@ -275,12 +280,13 @@ class LukinaBot(BaseFishingBot):
                         for i in range(person_count):
                             plus_btns[0].click()
                             time.sleep(0.01)
-                        self.log(f"✅ 인원 {person_count}명 설정 완료")
+                        self.log(f"✅ 인원 {person_count}명 설정 완료 (소요시간: {time.time()-step_start:.2f}초)")
                 except Exception as e:
                     self.log(f"⚠️ Person count selection error: {e}")
 
                 # 좌석 선택 로직 (우선순위: 10,11,1,20,9,12,2,19, 없으면 아무거나)
                 if has_seat_selection:
+                    step_start = time.time()
                     seat_priority = ['10', '11', '1', '20', '9', '12', '2', '19']
                     selected = 0
                     self.log(f"💺 좌석 선택 중... (우선순위: {', '.join(seat_priority)})")
@@ -310,8 +316,10 @@ class LukinaBot(BaseFishingBot):
                                     self.log(f"  → 좌석 {seat_val} 선택 (대체)")
                             except: continue
                     
-                    self.log(f"✅ 총 {selected}석 선택 완료")
+                    self.log(f"✅ 총 {selected}석 선택 완료 (소요시간: {time.time()-step_start:.2f}초)")
 
+                # 4.3 예약 정보 입력
+                step_start = time.time()
                 self.log("✍️ 예약 정보 입력 중...")
                 try:
                     name_input = self.driver.find_element(By.CSS_SELECTOR, "input[name='name']")
@@ -337,31 +345,38 @@ class LukinaBot(BaseFishingBot):
                     if p2:
                         self.driver.find_element(By.CSS_SELECTOR, "input[name='phone2']").send_keys(p2)
                         self.driver.find_element(By.CSS_SELECTOR, "input[name='phone3']").send_keys(p3)
-                        self.log(f"✅ 전화번호 입력: {p2}-{p3}")
+                        self.log(f"✅ 전화번호 입력: {p2}-{p3} (소요시간: {time.time()-step_start:.2f}초)")
                 except Exception as e:
                     self.log(f"⚠️ Info input error: {e}")
 
                 try:
+                    step_start_check = time.time()
                     all_check = self.driver.find_element(By.CSS_SELECTOR, "input[name='all_check']")
                     if not all_check.is_selected():
                         self.driver.execute_script("arguments[0].click();", all_check)
-                        self.log("✅ 전체 동의 체크")
+                        self.log(f"✅ 전체 동의 체크 (소요시간: {time.time()-step_start_check:.2f}초)")
                 except: pass
 
                 time.sleep(0.005)
                 
                 self.log("🚀 예약하기 버튼 클릭...")
+                step_start = time.time()
                 try:
                     submit_btn = self.driver.find_element(By.CSS_SELECTOR, "#btn_payment, a.btn_payment")
                     self.driver.execute_script("arguments[0].click();", submit_btn)
                     
                     try:
                         alert = WebDriverWait(self.driver, 3).until(EC.alert_is_present())
-                        self.log(f"🔔 Alert: {alert.text}")
+                        self.log(f"🔔 Alert: {alert.text} (소요시간: {time.time()-step_start:.2f}초)")
                         if not self.simulation_mode:
                             alert.accept()
                         else:
                             self.log("🛑 시뮬레이션 모드: 알림창 확인 후 중단")
+                            try:
+                                elapsed_time = time.time() - process_start_time
+                                self.log(f"⏱️ 총 소요 시간: {elapsed_time:.2f}초")
+                            except: pass
+                            self.log("✅ 예약 봇 실행 시퀀스가 모두 완료되었습니다.")
                             return
                     except: pass
                     

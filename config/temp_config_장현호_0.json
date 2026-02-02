@@ -1,0 +1,68 @@
+{
+    "target_time": "21:00:00",
+    "multi_instance": [
+        {
+            "enable": true,
+            "port": "남당항",
+            "provider": "장현호",
+            "date": "20261001",
+            "person_count": "1",
+            "user_name": "홍길동",
+            "user_depositor": "",
+            "user_phone": "010-2345-6789"
+        },
+        {
+            "enable": false,
+            "port": "오천항",
+            "provider": "가즈아호",
+            "date": "20261119",
+            "person_count": "1",
+            "user_name": "홍길동",
+            "user_depositor": "",
+            "user_phone": "010-2345-6789"
+        },
+        {
+            "enable": false,
+            "port": "안흥·신진항",
+            "provider": "여명호",
+            "date": "20261119",
+            "person_count": "1",
+            "user_name": "홍길동",
+            "user_depositor": "",
+            "user_phone": "010-2345-6789"
+        },
+        {
+            "enable": false,
+            "port": "삼길포항",
+            "provider": "만석호(선)",
+            "date": "20261119",
+            "person_count": "1",
+            "user_name": "홍길동",
+            "user_depositor": "",
+            "user_phone": "010-2345-6789"
+        },
+        {
+            "enable": false,
+            "port": "대천항",
+            "provider": "팀루피호",
+            "date": "20261119",
+            "person_count": "1",
+            "user_name": "홍길동",
+            "user_depositor": "",
+            "user_phone": "010-2345-6789"
+        }
+    ],
+    "test_mode": true,
+    "simulation_mode": true,
+    "target_date": "20261001",
+    "person_count": "1",
+    "user_name": "홍길동",
+    "user_depositor": "",
+    "user_phone": "010-2345-6789",
+    "port": "남당항",
+    "provider": "장현호",
+    "window_x": 0,
+    "window_y": 0,
+    "window_width": 2560,
+    "window_height": 1440
+}

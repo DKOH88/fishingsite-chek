@@ -1,0 +1,48 @@
+{
+    "target_time": "18:00:00",
+    "multi_instance": [
+        {
+            "enable": true,
+            "port": "구매항",
+            "provider": "악바리호",
+            "date": "20260901",
+            "person_count": "1",
+            "user_name": "오동균",
+            "user_depositor": "",
+            "user_phone": "010-5961-6149"
+        },
+        {
+            "enable": true,
+            "port": "구매항",
+            "provider": "악바리호2",
+            "date": "20260909",
+            "person_count": "1",
+            "user_name": "오동균",
+            "user_depositor": "",
+            "user_phone": "010-5961-6149"
+        },
+        {
+            "enable": false,
+            "port": "여수",
+            "provider": "오션스타3호",
+            "date": "20260206",
+            "person_count": "1",
+            "user_name": "박성민",
+            "user_depositor": "",
+            "user_phone": ""
+        }
+    ],
+    "test_mode": false,
+    "simulation_mode": false,
+    "target_date": "20260909",
+    "person_count": "1",
+    "user_name": "오동균",
+    "user_depositor": "",
+    "user_phone": "010-5961-6149",
+    "port": "구매항",
+    "provider": "악바리호2",
+    "window_x": 1280,
+    "window_y": 0,
+    "window_width": 1280,
+    "window_height": 1440
+}

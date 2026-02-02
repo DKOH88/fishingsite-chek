@@ -7,6 +7,14 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from base_bot import BaseFishingBot
+import os
+# 🚀 [Speed Optimization] Force Disable Proxy
+os.environ['HTTP_PROXY'] = ''
+os.environ['HTTPS_PROXY'] = ''
+os.environ['http_proxy'] = ''
+os.environ['https_proxy'] = ''
+os.environ['NO_PROXY'] = '*'
+
 
 class FriendBot(BaseFishingBot):
     def __init__(self, config):
@@ -51,7 +59,7 @@ class FriendBot(BaseFishingBot):
         user_phone = self.config.get('user_phone', '')
         user_pw = self.config.get('user_pw', '1234')
         
-        # 2. Build URL
+        # 2. Build URL (프랜드호 전용)
         base_url = "http://www.friendho.com/_core/module/reservation_boat_v5.2_seat1/popu2.step1.php"
         url = f"{base_url}?date={target_date}&PA_N_UID=1182"
         
@@ -75,7 +83,7 @@ class FriendBot(BaseFishingBot):
         
         while True:
             max_retries = 5000 
-            retry_interval = 1 
+            retry_interval = 0.2 
             step1_success = False
 
             for attempt in range(max_retries):
@@ -130,7 +138,7 @@ class FriendBot(BaseFishingBot):
                             continue
                     else:
                         self.log(f"⏳ 페이지 준비 안됨. 재시도... ({attempt+1}/{max_retries})")
-                        time.sleep(0.5)
+                        time.sleep(0.2)
                         self.driver.refresh() 
                         continue
                     
@@ -336,40 +344,75 @@ class FriendBot(BaseFishingBot):
                             should_hard_restart = True
                             break
                         
-                        if "이미" in alert_text or "불가능" in alert_text:
-                            self.log("⚠️ 좌석 선점 실패! 즉시 재시도...")
-                            alert.accept()
-                            self.driver.refresh()
-                            should_hard_restart = True
-                            break
-                        
                         if not self.simulation_mode:
-                            time.sleep(0.3)
                             alert.accept()
-                            time.sleep(0.5)
                             
-                            self.log("🔔 결과 알림창 대기 중...")
-                            result_alert = WebDriverWait(self.driver, 5).until(EC.alert_is_present())
-                            result_text = result_alert.text
-                            self.log(f"🔔 결과 알림창: {result_text}")
+                            self.log("🔔 결과 확인 대기 중 (알림창 or 페이지 변화)...")
+                            check_start_time = time.time()
+                            success_detected = False
                             
-                            if "완료" in result_text:
-                                result_alert.accept()
-                                self.log("🎉 예약 성공!")
+                            while time.time() - check_start_time < 5:
+                                # 1. Check Alert (Only for Failure)
+                                try:
+                                    alert = self.driver.switch_to.alert
+                                    alert_text = alert.text
+                                    self.log(f"🔔 알림창 감지: {alert_text}")
+                                    
+                                    if "정상적으로 예약해 주십시오" in alert_text:
+                                        alert.accept()
+                                        self.driver.refresh()
+                                        should_hard_restart = True
+                                        break
+                                    elif "이미" in alert_text or "불가능" in alert_text:
+                                        self.log("⚠️ 좌석 선점 실패! 즉시 재시도...")
+                                        alert.accept()
+                                        self.driver.refresh()
+                                        should_hard_restart = True
+                                        break
+                                    else:
+                                        # 그 외 알림창은 일단 닫고 계속 진행
+                                        alert.accept()
+                                except:
+                                    pass # No alert present
+
+                                # 2. Check Page Detection (Success Indicators)
+                                try:
+                                    # Indicator A: URL Check
+                                    if "step2.php" in self.driver.current_url:
+                                        success_detected = True
+                                        self.log("🎉 예약 성공! (URL 변경 확인: step2.php)")
+                                        break
+                                    
+                                    # Indicator B: Success Text Check
+                                    if "예약 신청이 완료되었습니다" in self.driver.page_source:
+                                        success_detected = True
+                                        self.log("🎉 예약 성공! (텍스트 확인)")
+                                        break
+
+                                    # Indicator C: Class Check
+                                    step2_items = self.driver.find_elements(By.CSS_SELECTOR, ".top_tab_menu2 li")
+                                    if len(step2_items) >= 2 and "on" in step2_items[1].get_attribute("class"):
+                                        success_detected = True
+                                        self.log("🎉 예약 성공! (STEP 02 활성화 확인)")
+                                        break
+                                except:
+                                    pass
+                                
+                                time.sleep(0.1) # Fast polling
+
+                            if should_hard_restart:
+                                break
+                                
+                            if success_detected:
                                 try:
                                     elapsed_time = time.time() - process_start_time
                                     self.log(f"⏱️ 총 소요 시간: {elapsed_time:.2f}초")
                                 except: pass
                                 self.log("✅ 예약 봇 실행 시퀀스가 모두 완료되었습니다.")
-                                return 
-                            elif "정상적으로 예약해 주십시오" in result_text:
-                                result_alert.accept()
-                                self.driver.refresh()
-                                should_hard_restart = True
-                                break
-                            else:
-                                result_alert.accept()
-                                break
+                                return
+
+                            self.log("⚠️ 5초 대기 후에도 결과 미확인. 재시도...")
+                            break
                         else:
                             self.log("🛑 시뮬레이션 종료")
                             try:

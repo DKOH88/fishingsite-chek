@@ -1,54 +1,34 @@
 {
-    "target_time": "13:29:58",
+    "target_time": "20:00:00",
     "multi_instance": [
         {
             "enable": true,
-            "port": "마검포항",
+            "port": "백사장항",
             "provider": "영차호",
-            "date": "20501017",
-            "person_count": "2",
-            "user_name": "dd",
+            "date": "20261113",
+            "person_count": "1",
+            "user_name": "박성민",
             "user_depositor": "",
-            "user_phone": "010-3356-9487"
+            "user_phone": "010-4562-1798"
         },
         {
             "enable": false,
-            "port": "안흥·신진항",
-            "provider": "마그마호",
-            "date": "20501004",
+            "port": "오천항",
+            "provider": "가즈아호",
+            "date": "20260901",
             "person_count": "1",
-            "user_name": "오동균",
+            "user_name": "",
             "user_depositor": "",
-            "user_phone": "010-2345-6149"
-        },
-        {
-            "enable": false,
-            "port": "마검포항",
-            "provider": "하와이호(선)",
-            "date": "20261004",
-            "person_count": "1",
-            "user_name": "오동균",
-            "user_depositor": "오동균",
-            "user_phone": "010-2345-6149"
-        },
-        {
-            "enable": false,
-            "port": "마검포항",
-            "provider": "하와이호(선)",
-            "date": "20261004",
-            "person_count": "1",
-            "user_name": "오동균",
-            "user_depositor": "오동균",
-            "user_phone": "010-2345-6149"
+            "user_phone": "010-"
         }
     ],
     "test_mode": true,
     "simulation_mode": true,
-    "target_date": "20501017",
-    "person_count": "2",
-    "user_name": "dd",
+    "target_date": "20261113",
+    "person_count": "1",
+    "user_name": "박성민",
     "user_depositor": "",
-    "user_phone": "010-3356-9487",
+    "user_phone": "010-4562-1798",
     "window_x": 0,
     "window_y": 0,
     "window_width": 1920,

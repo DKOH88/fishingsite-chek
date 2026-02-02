@@ -7,6 +7,14 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from base_bot import BaseFishingBot
+import os
+# 🚀 [Speed Optimization] Force Disable Proxy
+os.environ['HTTP_PROXY'] = ''
+os.environ['HTTPS_PROXY'] = ''
+os.environ['http_proxy'] = ''
+os.environ['https_proxy'] = ''
+os.environ['NO_PROXY'] = '*'
+
 
 class ManseokBot(BaseFishingBot):
     def __init__(self, config):
@@ -541,4 +549,3 @@ if __name__ == "__main__":
     bot = ManseokBot(config)
     try: bot.run()
     except KeyboardInterrupt: bot.stop()
-

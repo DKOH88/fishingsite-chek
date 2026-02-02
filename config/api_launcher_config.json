@@ -1,0 +1,15 @@
+{
+    "target_hour": "00",
+    "target_min": "00",
+    "target_sec": "00.0",
+    "test_mode": true,
+    "slots": [
+        {
+            "bot": "장현호 (API)",
+            "date": "20261001",
+            "name": "",
+            "phone": "010-",
+            "person": "1"
+        }
+    ]
+}

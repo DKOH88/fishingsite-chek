@@ -3,6 +3,7 @@ from tkinter import ttk, messagebox
 import json
 import os
 import subprocess
+import threading
 from datetime import datetime
 from PIL import Image, ImageTk # 📝 [추가] 이미지 표시를 위한 라이브러리
 
@@ -16,17 +17,20 @@ BOTS_DIR = os.path.join(BASE_DIR, "bots")
 # Data Structure: Port -> { ProviderName: ScriptName }
 # 항구 정렬: 선사 수 내림차순
 PORTS = {
-    "오천항": {  # 18개
+    "오천항": {  # 20개
         "가즈아호": "선상24/가즈아호_Bot.py",
         "❌ 금땡이호": "더피싱/금땡이호_Bot.py",
         "꽃돼지호": None,
         "❌ 나폴리호": "더피싱/나폴리호_Bot.py",
+        "뉴성령호": "더피싱/뉴성령호_Bot.py",
         "뉴찬스호(선)": "더피싱/뉴찬스호_Bot.py",
         "❌ 도지호": "선상24/도지호_Bot.py",
         "❌ 블루호": "더피싱/블루호_Bot.py",
         "빅보스호": "선상24/빅보스호_Bot.py", 
         "샤크호": "더피싱/샤크호_Bot.py",
+        "비엔나호": "더피싱/비엔나호_Bot.py",
         "싸부호": None,
+        "아리랑1호": "선상24/아리랑1호.py",
         "어쩌다어부호(선)": "선상24/어쩌다어부호_Bot.py",
         "❌ 오디세이호": "더피싱/오디세이호_Bot.py", 
         "유진호": "더피싱/유진호_Bot.py",
@@ -54,25 +58,29 @@ PORTS = {
         "킹스타호": None, 
         "행운호": "더피싱/행운호_Bot.py"
     },
-    "영흥도": {  # 12개
+    "영흥도": {  # 15개
+        "크루즈호": "더피싱/크루즈호_Bot.py",
         "❌ god호(선)": "더피싱/지오디호_Bot.py", 
         "루키나 2호(선)": "선상24/루키나 2호_Bot.py",
         "루키나호(선)": "선상24/루키나호_Bot.py",
+        "만수피싱호": "더피싱/만수피싱호_Bot.py",
         "❌ 스타피싱호(선)": "더피싱/스타피싱호_Bot.py", 
         "❌ 아라호(선)": "더피싱/아라호_Bot.py", 
         "❌ 아이리스호(선)": "더피싱/아이리스호_Bot.py", 
         "야호(선)": "더피싱/야호_Bot.py", 
         "짱구호(선)": "더피싱/짱구호_Bot.py", 
-        "팀만수호(선)": "더피싱/팀만수호_Bot.py", 
+        "팀만수호(선)": "더피싱/팀만수호_Bot.py",
+        "팀만수호2(선)": "더피싱/팀만수호2_Bot.py", 
         "팀에프원호(선)": "선상24/팀에프원호_Bot.py", 
         "팀에프투호(선)": "선상24/팀에프투호_Bot.py",
         "페라리호(선)": "더피싱/페라리호_Bot.py"
     },
-    "삼길포항": {  # 9개
+    "삼길포항": {  # 10개
         "골드피싱호(선)": "더피싱/골드피싱호_Bot.py", 
         "넘버원호(선)": "선상24/넘버원호_Bot.py", 
         "뉴항구호(선)": "선상24/뉴항구호_Bot.py", 
-        "만석호(선)": "더피싱/만석호_Bot.py", 
+        "만석호(선)": "더피싱/만석호_Bot.py",
+        "만석호2(선)": "더피싱/만석호2_Bot.py", 
         "승주호(선)": "더피싱/승주호_Bot.py", 
         "으리호(선)": "더피싱/으리호_Bot.py",
         "천마호(선)": "선상24/천마호_Bot.py", 
@@ -86,6 +94,7 @@ PORTS = {
         "아이언호": "선상24/아이언호_Bot.py",
         "야야호": "더피싱/야야호_Bot.py", 
         "예린호(선)": "더피싱/예린호_Bot.py",
+        "하이피싱호": "더피싱/하이피싱호_Bot.py",
         "팀루피호": "더피싱/팀루피호_Bot.py"
     },
     "마검포항": {  # 4개
@@ -99,29 +108,50 @@ PORTS = {
         "깜보호": "더피싱/깜보호_Bot.py", 
         "헤라호": "더피싱/헤라호_Bot.py"
     },
-    "영목항": {  # 3개
+    "영목항": {  # 4개
         "뉴청남호": "더피싱/뉴청남호_Bot.py", 
         "❌ 청광호": "더피싱/청광호_Bot.py", 
-        "청남호": "더피싱/청남호_Bot.py"
+        "청남호": "더피싱/청남호_Bot.py",
+        "청남호2": "더피싱/청남호2_Bot.py"
     },
     "인천": {  # 3개
         "와이파이호(선)": "더피싱/와이파이호_Bot.py",
         "욜로호": "더피싱/욜로호_Bot.py",
         "제트호(선)": "더피싱/제트호_Bot.py"
     },
-    "구매항": { # 1개
-        "악바리호": "선상24/악바리호_Bot.py"
+    "구매항": { # 2개
+        "악바리호": "선상24/악바리호_Bot.py",
+        "악바리호2": "선상24/악바리호2_Bot.py"
     },
-    "남당항": {  # 1개
-        "은가비호(선)": "선상24/은가비호_Bot.py"
+    "남당항": {  # 3개
+        "은가비호(선)": "선상24/은가비호_Bot.py",
+        "장현호": "더피싱/장현호_Bot.py",
+        "장현호2": "더피싱/장현호2_Bot.py"
     },
-    "대야도": {  # 1개
+    "대야도": {  # 2개
+        "블루오션호": "더피싱/블루오션호_Bot.py",
         "❌ 아일랜드호(선)": "더피싱/아일랜드호_Bot.py"
     },
     "백사장항": { # 1개
         "영차호": "더피싱/영차호_Bot.py"
     },
-    "여수": {}  # 0개
+    "여수": {  # 3개
+        "오션스타1호": "선상24/오션스타1호_Bot.py",
+        "오션스타2호": "선상24/오션스타2호_Bot.py",
+        "오션스타3호": "선상24/오션스타3호_Bot.py"
+    },
+    "녹동항": {  # 1개
+        "E.스마일호": "선상24/E.스마일_Bot.py"
+    },
+    "평택항": {
+        "오닉스호": "더피싱/오닉스호_Bot.py"
+    },
+    "전곡항": {
+        "제비호": "선상24/제비호_Bot.py"
+    },
+    "홍원항": {
+        "조커호": "더피싱/조커호_Bot.py"
+    }
 }
 
 class FishingLauncher:
@@ -134,7 +164,9 @@ class FishingLauncher:
         
         self.current_provider = None
         self.entries = {}
-        self.processes = [] # 📝 [추가] 실행 중인 봇 프로세스 관리
+        self.entries = {}
+        self.processes = [] # 실행 중인 봇 프로세스 관리
+        self.bot_logs = [] # 📝 [추가] 봇 로그 저장용 리스트
         
         self.create_widgets()
 
@@ -144,8 +176,34 @@ class FishingLauncher:
 
         self.load_config()
     
+    def save_log_to_file(self):
+        """Save current log content to file"""
+        try:
+            log_dir = r"C:\gemini\fishing_bot\Log"
+            if not os.path.exists(log_dir):
+                os.makedirs(log_dir)
+            
+            timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+            filename = f"GUI_Close_{timestamp}.txt"
+            filepath = os.path.join(log_dir, filename)
+            
+            # log_area might not be initialized if closed very early, but typically it is.
+            # log_area might not be initialized if closed very early, but typically it is.
+            if self.bot_logs:
+                log_content = "".join(self.bot_logs)
+                if log_content.strip():
+                    with open(filepath, "w", encoding="utf-8") as f:
+                        f.write(log_content)
+                    print(f"Bot Log saved to {filepath}")
+            else:
+                 # Fallback if empty or requested? User said "Bot logs".
+                 pass
+        except Exception as e:
+            print(f"Failed to save log: {e}")
+
     def on_close(self):
         """Save config and close window"""
+        self.save_log_to_file()
         self.save_config(silent=True)
         self.root.destroy()
 
@@ -269,13 +327,13 @@ class FishingLauncher:
         
         # Port
         ttk.Label(frame_slot, text="항구:").pack(side="left", padx=(0, 2))
-        cb_port = ttk.Combobox(frame_slot, values=self.port_list, width=8, state="readonly", height=15)
+        cb_port = ttk.Combobox(frame_slot, values=self.port_list, width=8, state="readonly", height=30)
         cb_port.set(self.port_list[0] if self.port_list else "")
         cb_port.pack(side="left", padx=(0, 10))
         
         # Provider
         ttk.Label(frame_slot, text="선사:").pack(side="left", padx=(0, 2))
-        cb_provider = ttk.Combobox(frame_slot, width=12, state="readonly", height=20)
+        cb_provider = ttk.Combobox(frame_slot, width=12, state="readonly", height=35)
         cb_provider.pack(side="left", padx=(0, 10))
         
         # Bind port change to update provider list
@@ -674,14 +732,25 @@ class FishingLauncher:
             messagebox.showwarning("경고", "선택된 슬롯(체크박스)이 없습니다.")
             return
 
-        # 📝 [추가] 필수 입력값 검증
+        # 📝 [추가] 필수 입력값 검증 (이름 & 전화번호 11자리 - 상세 안내)
         for idx, (i, slot) in enumerate(enabled_slots):
             u_name = slot['name'].get().strip()
             u_phone = slot['phone'].get().strip()
+            phone_digits = u_phone.replace('-', '')
             
-            if not u_name or not u_phone or u_phone == "010-":
-                self.log(f"⚠️ Slot {i+1}: 필수 정보(이름, 전화번호) 누락")
-                messagebox.showwarning("필수 정보 누락", f"{i+1}번 슬롯의 이름과 전화번호를 입력해주세요.\n(체크박스가 활성화된 항목은 정보가 필수입니다)")
+            error_msg = ""
+            if not u_name:
+                error_msg = "이름이 입력되지 않았습니다."
+            elif not u_phone:
+                error_msg = "전화번호가 입력되지 않았습니다."
+            elif not u_phone.startswith("010-"):
+                error_msg = "전화번호는 '010-'으로 시작해야 합니다."
+            elif len(phone_digits) != 11:
+                error_msg = f"전화번호 자릿수가 부족합니다.\n현재: {len(phone_digits)}자 (010 포함 11자리가 필요합니다)"
+            
+            if error_msg:
+                self.log(f"⚠️ Slot {i+1}: 입력 오류 - {error_msg.splitlines()[0]}")
+                messagebox.showwarning("입력 오류", f"{i+1}번 슬롯을 확인해주세요.\n\n⚠️ {error_msg}")
                 return
         
         # Get display size - use root window's screen dimensions
@@ -748,6 +817,10 @@ class FishingLauncher:
             temp_data['user_name'] = slot['name'].get()
             temp_data['user_depositor'] = slot['depositor'].get()
             temp_data['user_phone'] = slot['phone'].get()
+            
+            # Inject identity
+            temp_data['port'] = port
+            temp_data['provider'] = provider_clean
             
             temp_data['window_x'] = win_x
             temp_data['window_y'] = win_y
@@ -887,6 +960,22 @@ class FishingLauncher:
         else:
             self.log(f"❌ 파일을 찾을 수 없습니다: {img_path}")
             messagebox.showerror("오류", f"예약일 정보 파일을 찾을 수 없습니다.\n파일이 {BASE_DIR} 폴더에 있는지 확인해주세요.")
+
+    def monitor_bot_output(self, proc, prefix):
+        """Monitor stdout of bot process and append to bot_logs"""
+        try:
+            for line in iter(proc.stdout.readline, ''):
+                if line:
+                    timestamp = datetime.now().strftime("%H:%M:%S")
+                    log_entry = f"[{timestamp}] {prefix} {line}"
+                    self.bot_logs.append(log_entry)
+                    # Optional: Print strictly important messages to GUI if needed, currently just saving.
+                else:
+                    break
+        except Exception as e:
+            print(f"Error reading bot output: {e}")
+        finally:
+            proc.stdout.close()
 
 if __name__ == "__main__":
     if not os.path.exists(CONFIG_DIR): os.makedirs(CONFIG_DIR)

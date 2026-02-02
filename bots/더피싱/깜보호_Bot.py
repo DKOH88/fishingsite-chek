@@ -7,8 +7,16 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from base_bot import BaseFishingBot
+import os
+# 🚀 [Speed Optimization] Force Disable Proxy
+os.environ['HTTP_PROXY'] = ''
+os.environ['HTTPS_PROXY'] = ''
+os.environ['http_proxy'] = ''
+os.environ['https_proxy'] = ''
+os.environ['NO_PROXY'] = '*'
 
-class FriendBot(BaseFishingBot):
+
+class KkamboBot(BaseFishingBot):
     def __init__(self, config):
         super().__init__(config)
         self.success_event = threading.Event()
@@ -57,6 +65,7 @@ class FriendBot(BaseFishingBot):
         
         # 2.5 Pre-load / Warm-up
         self.log(f"🌍 페이지 사전 로드 중: {url}")
+        self.log("##########🔎 깜보호 예약로직 시작!##########")
         try:
              self.driver.get(url)
              self.log("✅ 사전 로드 완료. 오픈 시간을 기다립니다...")
@@ -74,12 +83,8 @@ class FriendBot(BaseFishingBot):
         self.log(f"🔥 예약 시도 시작 (반복 루프): {url}")
         
         while True:
-            if self.success_event.is_set():
-                self.log("✅ 예약 완료! (백그라운드 브라우저에서 성공)")
-                return
-            
             max_retries = 5000 
-            retry_interval = 0.2 
+            retry_interval = 0.2
             step1_success = False
 
             for attempt in range(max_retries):
@@ -134,7 +139,7 @@ class FriendBot(BaseFishingBot):
                             continue
                     else:
                         self.log(f"⏳ 페이지 준비 안됨. 재시도... ({attempt+1}/{max_retries})")
-                        time.sleep(0.2)
+                        time.sleep(0.1)
                         self.driver.refresh() 
                         continue
                     
@@ -143,7 +148,6 @@ class FriendBot(BaseFishingBot):
                     
                     # Step: Find fishing type
                     step_start = time.time()
-                    time.sleep(0.05)
                     radios = self.driver.find_elements(By.CSS_SELECTOR, "input.PS_N_UID")
                     self.log(f"🎣 낚시 종류 선택 항목 찾는 중... (소요시간: {time.time()-step_start:.2f}초)")
     
@@ -172,24 +176,20 @@ class FriendBot(BaseFishingBot):
                             text = span.text.strip()
                             if keyword in text:
                                 step_start = time.time()
-                                time.sleep(0.05)
                                 try:
                                     radio = span.find_element(By.XPATH, "./parent::td/preceding-sibling::td//input[@type='radio']")
                                     self.driver.execute_script("arguments[0].click();", radio)
-                                    time.sleep(0.05)
                                     self.log(f"✨ Match found! '{keyword}' -> Clicked radio (Parent TD). (소요시간: {time.time()-step_start:.2f}초)")
                                     found_click = True
                                 except:
                                     try:
                                         radio = span.find_element(By.XPATH, "./preceding-sibling::input[@type='radio']")
                                         self.driver.execute_script("arguments[0].click();", radio)
-                                        time.sleep(0.05)
                                         self.log(f"✨ Match found! '{keyword}' -> Clicked radio (Preceding Sibling). (소요시간: {time.time()-step_start:.2f}초)")
                                         found_click = True
                                     except:
                                          try:
                                             span.click()
-                                            time.sleep(0.05)
                                             self.log(f"✨ Match found! '{keyword}' -> Clicked span directly. (소요시간: {time.time()-step_start:.2f}초)")
                                             found_click = True
                                          except: pass
@@ -243,7 +243,6 @@ class FriendBot(BaseFishingBot):
 
             # Step 1.5: Select Person Count
             step_start = time.time()
-            time.sleep(0.05)
             try:
                 from selenium.webdriver.support.ui import Select
                 select_el = wait.until(EC.element_to_be_clickable((By.ID, "BI_IN")))
@@ -255,7 +254,7 @@ class FriendBot(BaseFishingBot):
                 
                 if current_val != target_count:
                     select_obj.select_by_value(target_count)
-                    time.sleep(0.05)
+                    time.sleep(0.01)
                     self.log(f"👥 인원을 {target_count}명으로 설정합니다... (소요시간: {time.time()-step_start:.2f}초)")
                 else:
                     self.log(f"👥 이미 {target_count}명으로 설정되어 있습니다. (소요시간: {time.time()-step_start:.2f}초)")
@@ -273,9 +272,8 @@ class FriendBot(BaseFishingBot):
                 step_start = time.time()
                 name_input = wait.until(EC.element_to_be_clickable((By.NAME, "BI_NAME")))
                 name_input.clear()
-                time.sleep(0.05)
                 name_input.send_keys(user_name)
-                time.sleep(0.05)
+                time.sleep(0.01)
                 self.log(f"✍️ 성함 입력 중: {user_name} (소요시간: {time.time()-step_start:.2f}초)")
                 
                 # Depositor
@@ -284,9 +282,8 @@ class FriendBot(BaseFishingBot):
                         step_start = time.time()
                         bank_input = self.driver.find_element(By.ID, "BI_BANK")
                         bank_input.clear()
-                        time.sleep(0.05)
                         bank_input.send_keys(user_depositor)
-                        time.sleep(0.05)
+                        time.sleep(0.01)
                         self.log(f"✍️ 입금자명 입력 중: {user_depositor} (소요시간: {time.time()-step_start:.2f}초)")
                     except: pass
 
@@ -301,9 +298,9 @@ class FriendBot(BaseFishingBot):
                 if p2 and p3:
                     step_start = time.time()
                     self.driver.find_element(By.ID, "BI_TEL2").send_keys(p2)
-                    time.sleep(0.05)
+                    time.sleep(0.01)
                     self.driver.find_element(By.ID, "BI_TEL3").send_keys(p3)
-                    time.sleep(0.05)
+                    time.sleep(0.01)
                     self.log(f"📞 연락처 입력 중: {p2}-{p3} (소요시간: {time.time()-step_start:.2f}초)")
 
                 # Agree
@@ -311,12 +308,12 @@ class FriendBot(BaseFishingBot):
                     step_start = time.time()
                     agree_btn = self.driver.find_element(By.XPATH, "//input[@name='all_agree' and @value='Y']")
                     self.driver.execute_script("arguments[0].click();", agree_btn)
-                    time.sleep(0.05)
+                    time.sleep(0.01)
                     self.log(f"✅ '전체 동의' 체크박스 클릭 완료. (소요시간: {time.time()-step_start:.2f}초)")
                 except: pass
 
                 # Submit
-                max_submit_retries = 10
+                max_submit_retries = 2
                 self.log("🚀 '예약 신청하기' 버튼 클릭 시도...")
                 for submit_attempt in range(max_submit_retries):
                     step_start = time.time()
@@ -332,11 +329,11 @@ class FriendBot(BaseFishingBot):
                         
                         if "정상적으로 예약해 주십시오" in alert_text:
                             self.log("⚠️ 오류! 처음부터 다시 시작.")
-                            time.sleep(0.05)
+                            time.sleep(0.01)
                             alert.accept()
-                            time.sleep(0.05)
+                            time.sleep(0.01)
                             self.driver.refresh()
-                            time.sleep(0.05)
+                            time.sleep(0.01)
                             should_hard_restart = True
                             break
                         
@@ -430,13 +427,13 @@ class FriendBot(BaseFishingBot):
                 continue
             
             self.log("🔄 루프 재시작...")
-            time.sleep(0.5)
+            time.sleep(0.1)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", required=True)
     args = parser.parse_args()
     with open(args.config, 'r', encoding='utf-8') as f: config = json.load(f)
-    bot = FriendBot(config)
+    bot = KkamboBot(config)
     try: bot.run()
     except KeyboardInterrupt: bot.stop()

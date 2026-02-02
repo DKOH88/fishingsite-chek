@@ -7,6 +7,14 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from base_bot import BaseFishingBot
+import os
+# 🚀 [Speed Optimization] Force Disable Proxy
+os.environ['HTTP_PROXY'] = ''
+os.environ['HTTPS_PROXY'] = ''
+os.environ['http_proxy'] = ''
+os.environ['https_proxy'] = ''
+os.environ['NO_PROXY'] = '*'
+
 
 class ManseokBot(BaseFishingBot):
     def __init__(self, config):
@@ -127,12 +135,11 @@ class ManseokBot(BaseFishingBot):
                             continue
                     else:
                         self.log(f"⏳ 페이지 준비 안됨. 재시도... ({attempt+1}/{max_retries})")
-                        time.sleep(0.5)
+                        time.sleep(0.1)
                         continue
                     
                     process_start_time = time.time()
                     step_start = time.time()
-                    time.sleep(0.05)
                     radios = self.driver.find_elements(By.CSS_SELECTOR, "input.PS_N_UID")
                     self.log(f"🎣 낚시 종류 선택 항목 찾는 중... (소요시간: {time.time()-step_start:.2f}초)")
 
@@ -161,7 +168,6 @@ class ManseokBot(BaseFishingBot):
                             text = span.text.strip()
                             if keyword in text:
                                 step_start = time.time()
-                                time.sleep(0.05)
                                 self.log(f"✨ Match found! '{keyword}' in '{text}' (소요시간: {time.time()-step_start:.2f}초)")
 
                                 try:
@@ -174,7 +180,6 @@ class ManseokBot(BaseFishingBot):
                                             self.driver.execute_script("arguments[0].click();", target_input)
                                             self.log(f"⚡ Clicked input by ID: {input_id}")
                                             found_click = True
-                                            time.sleep(0.05)
                                         except: pass
                                     
                                     if not found_click:
@@ -183,7 +188,6 @@ class ManseokBot(BaseFishingBot):
                                             self.driver.execute_script("arguments[0].click();", label)
                                             self.log(f"⚡ Clicked parent label.")
                                             found_click = True
-                                            time.sleep(0.05)
                                         except: pass
 
                                     if not found_click:
@@ -192,7 +196,6 @@ class ManseokBot(BaseFishingBot):
                                             self.driver.execute_script("arguments[0].click();", radio)
                                             self.log(f"⚡ Clicked radio (Ancestor TD).")
                                             found_click = True
-                                            time.sleep(0.05)
                                         except: pass
 
                                     if not found_click:
@@ -200,7 +203,6 @@ class ManseokBot(BaseFishingBot):
                                             span.click()
                                             self.log(f"⚡ Clicked span directly.")
                                             found_click = True
-                                            time.sleep(0.05)
                                         except: pass
                                 except Exception as e:
                                     self.log(f"⚠️ Click Logic Error: {e}")
@@ -268,7 +270,7 @@ class ManseokBot(BaseFishingBot):
 
             # Step 1.25: Seat Selection (Manseok-ho Specific)
             step_start = time.time()
-            seat_priority = [str(i) for i in range(1, 21)]
+            seat_priority = ['1', '11', '10', '20', '2', '12', '9', '19', '3', '13', '8', '18']
             selected_seats = 0
             selected_seats_list = []  
             
@@ -288,7 +290,6 @@ class ManseokBot(BaseFishingBot):
                         pass 
                         
                 if seat_class:
-                    time.sleep(0.05)
                     available_seats = self.driver.find_elements(By.XPATH, f"//span[@class='{seat_class}']")
                     available_count = len(available_seats)
                     self.log(f"📊 가용 좌석 수: {available_count}석, 설정 인원: {configured_count}명")
@@ -307,14 +308,12 @@ class ManseokBot(BaseFishingBot):
                                     self.log(f"✨ 우선순위 좌석 {seat_num}번 발견! 선택 시도 중... ({selected_seats+1}/{target_count})")
                                     class_before = seat_span.get_attribute("class") or ""
                                     self.driver.execute_script("arguments[0].click();", seat_span)
-                                    time.sleep(0.05)
                                     class_after = seat_span.get_attribute("class") or ""
                                     
                                     if class_after != class_before:
                                         selected_seats += 1
                                         selected_seats_list.append(seat_num)
                                         self.log(f"✅ 좌석 {seat_num}번 선택 성공! (현재: {selected_seats}/{target_count})")
-                                        time.sleep(0.05)
                                     else:
                                         self.log(f"⚠️ 좌석 {seat_num}번 선택 실패. 다음 순번으로...")
                                     break
@@ -335,7 +334,6 @@ class ManseokBot(BaseFishingBot):
                                         self.driver.execute_script("arguments[0].click();", seat_span)
                                         selected_seats += 1
                                         selected_seats_list.append(seat_text)
-                                        time.sleep(0.05)
                                 except:
                                     continue
                         except Exception as ex:
@@ -352,7 +350,6 @@ class ManseokBot(BaseFishingBot):
 
             # Step 1.5: Person Count (use selected_seats, not config value)
             step_start = time.time()
-            time.sleep(0.05)
             try:
                 from selenium.webdriver.support.ui import Select
                 select_el = wait.until(EC.element_to_be_clickable((By.ID, "BI_IN")))
@@ -364,7 +361,6 @@ class ManseokBot(BaseFishingBot):
                 
                 if current_val != final_count_str:
                     select_obj.select_by_value(final_count_str)
-                    time.sleep(0.05)
                     self.log(f"👥 인원을 {final_count_str}명으로 설정합니다... (선택된 좌석: {selected_seats}석) (소요시간: {time.time()-step_start:.2f}초)")
                 else:
                     self.log(f"👥 이미 {final_count_str}명으로 설정되어 있습니다. (소요시간: {time.time()-step_start:.2f}초)")
@@ -380,9 +376,8 @@ class ManseokBot(BaseFishingBot):
                 step_start = time.time()
                 name_input = wait.until(EC.element_to_be_clickable((By.NAME, "BI_NAME")))
                 name_input.clear()
-                time.sleep(0.05)
                 name_input.send_keys(user_name)
-                time.sleep(0.05)
+                time.sleep(0.01)
                 self.log(f"✍️ 성함 입력 중: {user_name} (소요시간: {time.time()-step_start:.2f}초)")
                 
                 # Depositor
@@ -391,9 +386,8 @@ class ManseokBot(BaseFishingBot):
                         step_start = time.time()
                         bank_input = self.driver.find_element(By.ID, "BI_BANK")
                         bank_input.clear()
-                        time.sleep(0.05)
                         bank_input.send_keys(user_depositor)
-                        time.sleep(0.05)
+                        time.sleep(0.01)
                         self.log(f"✍️ 입금자명 입력 중: {user_depositor} (소요시간: {time.time()-step_start:.2f}초)")
                     except: pass
 
@@ -409,14 +403,12 @@ class ManseokBot(BaseFishingBot):
                     try:
                         t2 = self.driver.find_element(By.ID, "BI_TEL2")
                         t2.clear()
-                        time.sleep(0.05)
                         t2.send_keys(p2)
-                        time.sleep(0.05)
+                        time.sleep(0.01)
                         t3 = self.driver.find_element(By.ID, "BI_TEL3")
                         t3.clear()
-                        time.sleep(0.05)
                         t3.send_keys(p3)
-                        time.sleep(0.05)
+                        time.sleep(0.01)
                         self.log(f"📞 연락처 입력 중: {p2}-{p3} (소요시간: {time.time()-step_start:.2f}초)")
                     except: pass
 
@@ -424,13 +416,13 @@ class ManseokBot(BaseFishingBot):
                     step_start = time.time()
                     agree_btn = self.driver.find_element(By.XPATH, "//input[@name='all_agree' and @value='Y']")
                     self.driver.execute_script("arguments[0].click();", agree_btn)
-                    time.sleep(0.05)
+                    time.sleep(0.01)
                     self.log(f"✅ '전체 동의' 체크박스 클릭 완료. (소요시간: {time.time()-step_start:.2f}초)")
                 except: pass
 
                 # Step 3: Submit Logic (FriendBot style)
                 self.log("🚀 '예약 신청하기' 버튼 클릭 시도...")
-                max_submit_retries = 10
+                max_submit_retries = 2
                 for submit_attempt in range(max_submit_retries):
                     step_start = time.time()
                     self.log(f"🚀 제출 시도 ({submit_attempt + 1}/{max_submit_retries})...")
@@ -447,11 +439,11 @@ class ManseokBot(BaseFishingBot):
                         if "정상적으로 예약해 주십시오" in alert_text:
                             self.log("⚠️ 오류! 처음부터 다시 시작.")
                             try:
-                                time.sleep(0.05)
+                                time.sleep(0.01)
                                 alert.accept()
-                                time.sleep(0.05)
+                                time.sleep(0.01)
                                 self.driver.refresh()
-                                time.sleep(0.05)
+                                time.sleep(0.01)
                             except: pass
                             should_hard_restart = True
                             break
@@ -546,7 +538,7 @@ class ManseokBot(BaseFishingBot):
                 continue
             
             self.log("🔄 루프 재시작...")
-            time.sleep(0.5)
+            time.sleep(0.05)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -556,4 +548,3 @@ if __name__ == "__main__":
     bot = ManseokBot(config)
     try: bot.run()
     except KeyboardInterrupt: bot.stop()
-

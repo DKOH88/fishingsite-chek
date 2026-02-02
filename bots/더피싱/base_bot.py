@@ -1,12 +1,22 @@
 import os
 import time
 import requests
+import urllib3
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 import email.utils
 from datetime import datetime, timedelta
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import WebDriverWait
+import os
+# 🚀 [Speed Optimization] Force Disable Proxy
+os.environ['HTTP_PROXY'] = ''
+os.environ['HTTPS_PROXY'] = ''
+os.environ['http_proxy'] = ''
+os.environ['https_proxy'] = ''
+os.environ['NO_PROXY'] = '*'
+
 
 class BaseFishingBot:
     def __init__(self, config):
@@ -14,12 +24,73 @@ class BaseFishingBot:
         self.driver = None
         self.log_callback = print  # Default to print, can be overridden by GUI
         self.is_running = True
+        
+        # Setup File Logging
+        self.log_file = None
+        try:
+            log_dir = os.path.join(os.path.dirname(__file__), '..', '..', 'Log')
+            if not os.path.exists(log_dir):
+                os.makedirs(log_dir)
+            
+            # Filename based on config info if available, else timestamp
+            target_date = config.get('target_date', 'UnknownDate')
+            provider_name = 'Bot' # Can't get provider easily here without passing it? 
+            # Filename generation
+            now = datetime.now()
+            time_str = now.strftime("%Y_%m월%d일_%H시%M분%S초")
+            
+            p_provider = config.get('provider', 'Unknown')
+            
+            t_date = config.get('target_date', '00000000')
+            if len(t_date) == 8 and t_date.isdigit():
+                t_date_fmt = f"{t_date[:4]}_{t_date[4:6]}_{t_date[6:]}"
+            else:
+                t_date_fmt = t_date
+                
+            self.log_file = os.path.join(log_dir, f"{time_str}_더피싱_{p_provider}_{t_date_fmt}_.txt")
+            
+            # Write header
+            pretty_timestamp = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
+            with open(self.log_file, "a", encoding="utf-8") as f:
+                f.write(f"=== Bot Log Started: {pretty_timestamp} ===\n")
+                
+                # Formatted Header
+                p_port = config.get('port', 'Unknown')
+                p_provider = config.get('provider', 'Unknown')
+                p_date = config.get('target_date', '')
+                if len(p_date) == 8 and p_date.isdigit():
+                    p_date = f"{p_date[:4]}-{p_date[4:6]}-{p_date[6:]}"
+                
+                p_time = config.get('target_time', '')
+                p_name = config.get('user_name', '')
+                p_phone = config.get('user_phone', '')
+                
+                f.write(f"항구: {p_port}\n")
+                f.write(f"선사: {p_provider}\n")
+                f.write(f"예약날짜: {p_date}\n")
+                f.write(f"예약시간: {p_time}\n")
+                f.write(f"예약자: {p_name}\n")
+                f.write(f"전화번호: {p_phone}\n")
+                f.write("-" * 30 + "\n\n")
+        except Exception as e:
+            print(f"Failed to setup log file: {e}")
 
     def log(self, msg):
         """Standard log format"""
+        timestamp = datetime.now().strftime("%H:%M:%S.%f")[:-4]
+        formatted_msg = f"[{timestamp}] {msg}"
+        
+        # 1. Print to Console (so user sees it in black window)
         if self.log_callback:
-            timestamp = datetime.now().strftime("%H:%M:%S.%f")[:-4]
-            self.log_callback(f"[{timestamp}] {msg}")
+            self.log_callback(formatted_msg)
+            
+        # 2. Write to File
+        if self.log_file:
+            try:
+                with open(self.log_file, "a", encoding="utf-8") as f:
+                    f.write(formatted_msg + "\n")
+            except:
+                pass
 
     def setup_driver(self):
         """Initialize Chrome Driver with stealth settings"""
@@ -39,6 +110,7 @@ class BaseFishingBot:
         chrome_options.add_experimental_option("detach", True)
         chrome_options.add_experimental_option("excludeSwitches", ["enable-automation", "enable-logging"])
         chrome_options.add_argument("--disable-blink-features=AutomationControlled")
+        chrome_options.add_argument("--no-proxy-server") # 🚀 [Speed] Force direct connection
         
         # Performance options
         chrome_options.page_load_strategy = 'eager'
@@ -83,7 +155,11 @@ class BaseFishingBot:
     def get_server_time(self, url):
         """Fetch server time from headers"""
         try:
-            resp = requests.head(url, timeout=3)
+            # 🚀 Use Session with trust_env=False to speed up request (Bypass Proxy Check)
+            with requests.Session() as s:
+                s.trust_env = False
+                resp = s.head(url, timeout=3, verify=False)
+            
             date_str = resp.headers.get('Date')
             if date_str:
                 gmt = email.utils.parsedate_to_datetime(date_str)

@@ -1,0 +1,1010 @@
+=== Bot Log Started: 2026-02-01_08:51:57 ===
+항구: 평택항
+선사: 오닉스호
+예약날짜: 2050-09-19
+예약시간: 09:00:00
+예약자: 김현근
+전화번호: 010-9946-9282
+------------------------------
+
+[08:51:57.79] 🚗 크롬 드라이버를 설정하고 있습니다...
+[08:51:59.05] 📝 Chrome PID 저장됨: [21320, 3860, 35940, 20532, 13944, 16496, 31576]
+[08:51:59.08] 📍 창 위치 설정: (0, 0)
+[08:51:59.11] 📐 창 크기 설정: 2560 x 1440
+[08:51:59.11] 🌍 페이지 사전 로드 중: http://xn--bj1bs41a0scq4w.kr/_core/module/reservation_boat_v5.1/popu2.step1.php?date=20500919&PA_N_UID=4046
+[08:51:59.30] ✅ 사전 로드 완료. 오픈 시간을 기다립니다...
+[08:51:59.30] ⏰ 실행 예약 시간: 09:00:00...
+[08:51:59.30] ⏰ 목표 시간 대기 중: 2026-02-01 09:00:00 (현재 시간 기준)
+[09:00:00.01] 🚀 예약 오픈 시간입니다! 작업을 시작합니다!
+[09:00:00.01] 🔥 예약 시도 시작 (반복 루프): http://xn--bj1bs41a0scq4w.kr/_core/module/reservation_boat_v5.1/popu2.step1.php?date=20500919&PA_N_UID=4046
+[09:00:00.01] ⚠️ 연결 오류 발생: Message: invalid session id: session deleted as the browser has closed the connection
+from disconnected: not connected to DevTools
+  (Session info: chrome=144.0.7559.110)
+Stacktrace:
+Symbols not available. Dumping unresolved backtrace:
+	0x7ff7a4c8a535
+	0x7ff7a4c8a590
+	0x7ff7a4a310bd
+	0x7ff7a4a1c642
+	0x7ff7a4a429db
+	0x7ff7a4abd690
+	0x7ff7a4ad9822
+	0x7ff7a4a7cc9c
+	0x7ff7a4a7dbe3
+	0x7ff7a4f67b60
+	0x7ff7a4f61f5d
+	0x7ff7a4f8311a
+	0x7ff7a4ca60a5
+	0x7ff7a4cae73c
+	0x7ff7a4c93844
+	0x7ff7a4c939f6
+	0x7ff7a4c79a07
+	0x7ffa0b3ee8d7
+	0x7ffa0c6ac53c
+. 재시도 중...
+[09:00:00.21] ⚠️ 연결 오류 발생: Message: invalid session id
+Stacktrace:
+Symbols not available. Dumping unresolved backtrace:
+	0x7ff7a4c8a535
+	0x7ff7a4c8a590
+	0x7ff7a4a30ea6
+	0x7ff7a4a7bca6
+	0x7ff7a4ab5942
+	0x7ff7a4aafd66
+	0x7ff7a4aaecc1
+	0x7ff7a49f99e5
+	0x7ff7a4f67b60
+	0x7ff7a4f61f5d
+	0x7ff7a4f8311a
+	0x7ff7a4ca60a5
+	0x7ff7a4cae73c
+	0x7ff7a49f87aa
+	0x7ff7a50cf448
+	0x7ffa0b3ee8d7
+	0x7ffa0c6ac53c
+. 재시도 중...
+[09:00:00.41] ⚠️ 연결 오류 발생: Message: invalid session id
+Stacktrace:
+Symbols not available. Dumping unresolved backtrace:
+	0x7ff7a4c8a535
+	0x7ff7a4c8a590
+	0x7ff7a4a30ea6
+	0x7ff7a4a7bca6
+	0x7ff7a4ab5942
+	0x7ff7a4aafd66
+	0x7ff7a4aaecc1
+	0x7ff7a49f99e5
+	0x7ff7a4f67b60
+	0x7ff7a4f61f5d
+	0x7ff7a4f8311a
+	0x7ff7a4ca60a5
+	0x7ff7a4cae73c
+	0x7ff7a49f87aa
+	0x7ff7a50cf448
+	0x7ffa0b3ee8d7
+	0x7ffa0c6ac53c
+. 재시도 중...
+[09:00:00.61] ⚠️ 연결 오류 발생: Message: invalid session id
+Stacktrace:
+Symbols not available. Dumping unresolved backtrace:
+	0x7ff7a4c8a535
+	0x7ff7a4c8a590
+	0x7ff7a4a30ea6
+	0x7ff7a4a7bca6
+	0x7ff7a4ab5942
+	0x7ff7a4aafd66
+	0x7ff7a4aaecc1
+	0x7ff7a49f99e5
+	0x7ff7a4f67b60
+	0x7ff7a4f61f5d
+	0x7ff7a4f8311a
+	0x7ff7a4ca60a5
+	0x7ff7a4cae73c
+	0x7ff7a49f87aa
+	0x7ff7a50cf448
+	0x7ffa0b3ee8d7
+	0x7ffa0c6ac53c
+. 재시도 중...
+[09:00:00.82] ⚠️ 연결 오류 발생: Message: invalid session id
+Stacktrace:
+Symbols not available. Dumping unresolved backtrace:
+	0x7ff7a4c8a535
+	0x7ff7a4c8a590
+	0x7ff7a4a30ea6
+	0x7ff7a4a7bca6
+	0x7ff7a4ab5942
+	0x7ff7a4aafd66
+	0x7ff7a4aaecc1
+	0x7ff7a49f99e5
+	0x7ff7a4f67b60
+	0x7ff7a4f61f5d
+	0x7ff7a4f8311a
+	0x7ff7a4ca60a5
+	0x7ff7a4cae73c
+	0x7ff7a49f87aa
+	0x7ff7a50cf448
+	0x7ffa0b3ee8d7
+	0x7ffa0c6ac53c
+. 재시도 중...
+[09:00:01.02] ⚠️ 연결 오류 발생: Message: invalid session id
+Stacktrace:
+Symbols not available. Dumping unresolved backtrace:
+	0x7ff7a4c8a535
+	0x7ff7a4c8a590
+	0x7ff7a4a30ea6
+	0x7ff7a4a7bca6
+	0x7ff7a4ab5942
+	0x7ff7a4aafd66
+	0x7ff7a4aaecc1
+	0x7ff7a49f99e5
+	0x7ff7a4f67b60
+	0x7ff7a4f61f5d
+	0x7ff7a4f8311a
+	0x7ff7a4ca60a5
+	0x7ff7a4cae73c
+	0x7ff7a49f87aa
+	0x7ff7a50cf448
+	0x7ffa0b3ee8d7
+	0x7ffa0c6ac53c
+. 재시도 중...
+[09:00:01.22] ⚠️ 연결 오류 발생: Message: invalid session id
+Stacktrace:
+Symbols not available. Dumping unresolved backtrace:
+	0x7ff7a4c8a535
+	0x7ff7a4c8a590
+	0x7ff7a4a30ea6
+	0x7ff7a4a7bca6
+	0x7ff7a4ab5942
+	0x7ff7a4aafd66
+	0x7ff7a4aaecc1
+	0x7ff7a49f99e5
+	0x7ff7a4f67b60
+	0x7ff7a4f61f5d
+	0x7ff7a4f8311a
+	0x7ff7a4ca60a5
+	0x7ff7a4cae73c
+	0x7ff7a49f87aa
+	0x7ff7a50cf448
+	0x7ffa0b3ee8d7
+	0x7ffa0c6ac53c
+. 재시도 중...
+[09:00:01.42] ⚠️ 연결 오류 발생: Message: invalid session id
+Stacktrace:
+Symbols not available. Dumping unresolved backtrace:
+	0x7ff7a4c8a535
+	0x7ff7a4c8a590
+	0x7ff7a4a30ea6
+	0x7ff7a4a7bca6
+	0x7ff7a4ab5942
+	0x7ff7a4aafd66
+	0x7ff7a4aaecc1
+	0x7ff7a49f99e5
+	0x7ff7a4f67b60
+	0x7ff7a4f61f5d
+	0x7ff7a4f8311a
+	0x7ff7a4ca60a5
+	0x7ff7a4cae73c
+	0x7ff7a49f87aa
+	0x7ff7a50cf448
+	0x7ffa0b3ee8d7
+	0x7ffa0c6ac53c
+. 재시도 중...
+[09:00:01.62] ⚠️ 연결 오류 발생: Message: invalid session id
+Stacktrace:
+Symbols not available. Dumping unresolved backtrace:
+	0x7ff7a4c8a535
+	0x7ff7a4c8a590
+	0x7ff7a4a30ea6
+	0x7ff7a4a7bca6
+	0x7ff7a4ab5942
+	0x7ff7a4aafd66
+	0x7ff7a4aaecc1
+	0x7ff7a49f99e5
+	0x7ff7a4f67b60
+	0x7ff7a4f61f5d
+	0x7ff7a4f8311a
+	0x7ff7a4ca60a5
+	0x7ff7a4cae73c
+	0x7ff7a49f87aa
+	0x7ff7a50cf448
+	0x7ffa0b3ee8d7
+	0x7ffa0c6ac53c
+. 재시도 중...
+[09:00:01.82] ⚠️ 연결 오류 발생: Message: invalid session id
+Stacktrace:
+Symbols not available. Dumping unresolved backtrace:
+	0x7ff7a4c8a535
+	0x7ff7a4c8a590
+	0x7ff7a4a30ea6
+	0x7ff7a4a7bca6
+	0x7ff7a4ab5942
+	0x7ff7a4aafd66
+	0x7ff7a4aaecc1
+	0x7ff7a49f99e5
+	0x7ff7a4f67b60
+	0x7ff7a4f61f5d
+	0x7ff7a4f8311a
+	0x7ff7a4ca60a5
+	0x7ff7a4cae73c
+	0x7ff7a49f87aa
+	0x7ff7a50cf448
+	0x7ffa0b3ee8d7
+	0x7ffa0c6ac53c
+. 재시도 중...
+[09:00:02.03] ⚠️ 연결 오류 발생: Message: invalid session id
+Stacktrace:
+Symbols not available. Dumping unresolved backtrace:
+	0x7ff7a4c8a535
+	0x7ff7a4c8a590
+	0x7ff7a4a30ea6
+	0x7ff7a4a7bca6
+	0x7ff7a4ab5942
+	0x7ff7a4aafd66
+	0x7ff7a4aaecc1
+	0x7ff7a49f99e5
+	0x7ff7a4f67b60
+	0x7ff7a4f61f5d
+	0x7ff7a4f8311a
+	0x7ff7a4ca60a5
+	0x7ff7a4cae73c
+	0x7ff7a49f87aa
+	0x7ff7a50cf448
+	0x7ffa0b3ee8d7
+	0x7ffa0c6ac53c
+. 재시도 중...
+[09:00:02.23] ⚠️ 연결 오류 발생: Message: invalid session id
+Stacktrace:
+Symbols not available. Dumping unresolved backtrace:
+	0x7ff7a4c8a535
+	0x7ff7a4c8a590
+	0x7ff7a4a30ea6
+	0x7ff7a4a7bca6
+	0x7ff7a4ab5942
+	0x7ff7a4aafd66
+	0x7ff7a4aaecc1
+	0x7ff7a49f99e5
+	0x7ff7a4f67b60
+	0x7ff7a4f61f5d
+	0x7ff7a4f8311a
+	0x7ff7a4ca60a5
+	0x7ff7a4cae73c
+	0x7ff7a49f87aa
+	0x7ff7a50cf448
+	0x7ffa0b3ee8d7
+	0x7ffa0c6ac53c
+. 재시도 중...
+[09:00:02.43] ⚠️ 연결 오류 발생: Message: invalid session id
+Stacktrace:
+Symbols not available. Dumping unresolved backtrace:
+	0x7ff7a4c8a535
+	0x7ff7a4c8a590
+	0x7ff7a4a30ea6
+	0x7ff7a4a7bca6
+	0x7ff7a4ab5942
+	0x7ff7a4aafd66
+	0x7ff7a4aaecc1
+	0x7ff7a49f99e5
+	0x7ff7a4f67b60
+	0x7ff7a4f61f5d
+	0x7ff7a4f8311a
+	0x7ff7a4ca60a5
+	0x7ff7a4cae73c
+	0x7ff7a49f87aa
+	0x7ff7a50cf448
+	0x7ffa0b3ee8d7
+	0x7ffa0c6ac53c
+. 재시도 중...
+[09:00:02.63] ⚠️ 연결 오류 발생: Message: invalid session id
+Stacktrace:
+Symbols not available. Dumping unresolved backtrace:
+	0x7ff7a4c8a535
+	0x7ff7a4c8a590
+	0x7ff7a4a30ea6
+	0x7ff7a4a7bca6
+	0x7ff7a4ab5942
+	0x7ff7a4aafd66
+	0x7ff7a4aaecc1
+	0x7ff7a49f99e5
+	0x7ff7a4f67b60
+	0x7ff7a4f61f5d
+	0x7ff7a4f8311a
+	0x7ff7a4ca60a5
+	0x7ff7a4cae73c
+	0x7ff7a49f87aa
+	0x7ff7a50cf448
+	0x7ffa0b3ee8d7
+	0x7ffa0c6ac53c
+. 재시도 중...
+[09:00:02.84] ⚠️ 연결 오류 발생: Message: invalid session id
+Stacktrace:
+Symbols not available. Dumping unresolved backtrace:
+	0x7ff7a4c8a535
+	0x7ff7a4c8a590
+	0x7ff7a4a30ea6
+	0x7ff7a4a7bca6
+	0x7ff7a4ab5942
+	0x7ff7a4aafd66
+	0x7ff7a4aaecc1
+	0x7ff7a49f99e5
+	0x7ff7a4f67b60
+	0x7ff7a4f61f5d
+	0x7ff7a4f8311a
+	0x7ff7a4ca60a5
+	0x7ff7a4cae73c
+	0x7ff7a49f87aa
+	0x7ff7a50cf448
+	0x7ffa0b3ee8d7
+	0x7ffa0c6ac53c
+. 재시도 중...
+[09:00:03.04] ⚠️ 연결 오류 발생: Message: invalid session id
+Stacktrace:
+Symbols not available. Dumping unresolved backtrace:
+	0x7ff7a4c8a535
+	0x7ff7a4c8a590
+	0x7ff7a4a30ea6
+	0x7ff7a4a7bca6
+	0x7ff7a4ab5942
+	0x7ff7a4aafd66
+	0x7ff7a4aaecc1
+	0x7ff7a49f99e5
+	0x7ff7a4f67b60
+	0x7ff7a4f61f5d
+	0x7ff7a4f8311a
+	0x7ff7a4ca60a5
+	0x7ff7a4cae73c
+	0x7ff7a49f87aa
+	0x7ff7a50cf448
+	0x7ffa0b3ee8d7
+	0x7ffa0c6ac53c
+. 재시도 중...
+[09:00:03.24] ⚠️ 연결 오류 발생: Message: invalid session id
+Stacktrace:
+Symbols not available. Dumping unresolved backtrace:
+	0x7ff7a4c8a535
+	0x7ff7a4c8a590
+	0x7ff7a4a30ea6
+	0x7ff7a4a7bca6
+	0x7ff7a4ab5942
+	0x7ff7a4aafd66
+	0x7ff7a4aaecc1
+	0x7ff7a49f99e5
+	0x7ff7a4f67b60
+	0x7ff7a4f61f5d
+	0x7ff7a4f8311a
+	0x7ff7a4ca60a5
+	0x7ff7a4cae73c
+	0x7ff7a49f87aa
+	0x7ff7a50cf448
+	0x7ffa0b3ee8d7
+	0x7ffa0c6ac53c
+. 재시도 중...
+[09:00:03.44] ⚠️ 연결 오류 발생: Message: invalid session id
+Stacktrace:
+Symbols not available. Dumping unresolved backtrace:
+	0x7ff7a4c8a535
+	0x7ff7a4c8a590
+	0x7ff7a4a30ea6
+	0x7ff7a4a7bca6
+	0x7ff7a4ab5942
+	0x7ff7a4aafd66
+	0x7ff7a4aaecc1
+	0x7ff7a49f99e5
+	0x7ff7a4f67b60
+	0x7ff7a4f61f5d
+	0x7ff7a4f8311a
+	0x7ff7a4ca60a5
+	0x7ff7a4cae73c
+	0x7ff7a49f87aa
+	0x7ff7a50cf448
+	0x7ffa0b3ee8d7
+	0x7ffa0c6ac53c
+. 재시도 중...
+[09:00:03.64] ⚠️ 연결 오류 발생: Message: invalid session id
+Stacktrace:
+Symbols not available. Dumping unresolved backtrace:
+	0x7ff7a4c8a535
+	0x7ff7a4c8a590
+	0x7ff7a4a30ea6
+	0x7ff7a4a7bca6
+	0x7ff7a4ab5942
+	0x7ff7a4aafd66
+	0x7ff7a4aaecc1
+	0x7ff7a49f99e5
+	0x7ff7a4f67b60
+	0x7ff7a4f61f5d
+	0x7ff7a4f8311a
+	0x7ff7a4ca60a5
+	0x7ff7a4cae73c
+	0x7ff7a49f87aa
+	0x7ff7a50cf448
+	0x7ffa0b3ee8d7
+	0x7ffa0c6ac53c
+. 재시도 중...
+[09:00:03.85] ⚠️ 연결 오류 발생: Message: invalid session id
+Stacktrace:
+Symbols not available. Dumping unresolved backtrace:
+	0x7ff7a4c8a535
+	0x7ff7a4c8a590
+	0x7ff7a4a30ea6
+	0x7ff7a4a7bca6
+	0x7ff7a4ab5942
+	0x7ff7a4aafd66
+	0x7ff7a4aaecc1
+	0x7ff7a49f99e5
+	0x7ff7a4f67b60
+	0x7ff7a4f61f5d
+	0x7ff7a4f8311a
+	0x7ff7a4ca60a5
+	0x7ff7a4cae73c
+	0x7ff7a49f87aa
+	0x7ff7a50cf448
+	0x7ffa0b3ee8d7
+	0x7ffa0c6ac53c
+. 재시도 중...
+[09:00:04.05] ⚠️ 연결 오류 발생: Message: invalid session id
+Stacktrace:
+Symbols not available. Dumping unresolved backtrace:
+	0x7ff7a4c8a535
+	0x7ff7a4c8a590
+	0x7ff7a4a30ea6
+	0x7ff7a4a7bca6
+	0x7ff7a4ab5942
+	0x7ff7a4aafd66
+	0x7ff7a4aaecc1
+	0x7ff7a49f99e5
+	0x7ff7a4f67b60
+	0x7ff7a4f61f5d
+	0x7ff7a4f8311a
+	0x7ff7a4ca60a5
+	0x7ff7a4cae73c
+	0x7ff7a49f87aa
+	0x7ff7a50cf448
+	0x7ffa0b3ee8d7
+	0x7ffa0c6ac53c
+. 재시도 중...
+[09:00:04.25] ⚠️ 연결 오류 발생: Message: invalid session id
+Stacktrace:
+Symbols not available. Dumping unresolved backtrace:
+	0x7ff7a4c8a535
+	0x7ff7a4c8a590
+	0x7ff7a4a30ea6
+	0x7ff7a4a7bca6
+	0x7ff7a4ab5942
+	0x7ff7a4aafd66
+	0x7ff7a4aaecc1
+	0x7ff7a49f99e5
+	0x7ff7a4f67b60
+	0x7ff7a4f61f5d
+	0x7ff7a4f8311a
+	0x7ff7a4ca60a5
+	0x7ff7a4cae73c
+	0x7ff7a49f87aa
+	0x7ff7a50cf448
+	0x7ffa0b3ee8d7
+	0x7ffa0c6ac53c
+. 재시도 중...
+[09:00:04.45] ⚠️ 연결 오류 발생: Message: invalid session id
+Stacktrace:
+Symbols not available. Dumping unresolved backtrace:
+	0x7ff7a4c8a535
+	0x7ff7a4c8a590
+	0x7ff7a4a30ea6
+	0x7ff7a4a7bca6
+	0x7ff7a4ab5942
+	0x7ff7a4aafd66
+	0x7ff7a4aaecc1
+	0x7ff7a49f99e5
+	0x7ff7a4f67b60
+	0x7ff7a4f61f5d
+	0x7ff7a4f8311a
+	0x7ff7a4ca60a5
+	0x7ff7a4cae73c
+	0x7ff7a49f87aa
+	0x7ff7a50cf448
+	0x7ffa0b3ee8d7
+	0x7ffa0c6ac53c
+. 재시도 중...
+[09:00:04.65] ⚠️ 연결 오류 발생: Message: invalid session id
+Stacktrace:
+Symbols not available. Dumping unresolved backtrace:
+	0x7ff7a4c8a535
+	0x7ff7a4c8a590
+	0x7ff7a4a30ea6
+	0x7ff7a4a7bca6
+	0x7ff7a4ab5942
+	0x7ff7a4aafd66
+	0x7ff7a4aaecc1
+	0x7ff7a49f99e5
+	0x7ff7a4f67b60
+	0x7ff7a4f61f5d
+	0x7ff7a4f8311a
+	0x7ff7a4ca60a5
+	0x7ff7a4cae73c
+	0x7ff7a49f87aa
+	0x7ff7a50cf448
+	0x7ffa0b3ee8d7
+	0x7ffa0c6ac53c
+. 재시도 중...
+[09:00:04.85] ⚠️ 연결 오류 발생: Message: invalid session id
+Stacktrace:
+Symbols not available. Dumping unresolved backtrace:
+	0x7ff7a4c8a535
+	0x7ff7a4c8a590
+	0x7ff7a4a30ea6
+	0x7ff7a4a7bca6
+	0x7ff7a4ab5942
+	0x7ff7a4aafd66
+	0x7ff7a4aaecc1
+	0x7ff7a49f99e5
+	0x7ff7a4f67b60
+	0x7ff7a4f61f5d
+	0x7ff7a4f8311a
+	0x7ff7a4ca60a5
+	0x7ff7a4cae73c
+	0x7ff7a49f87aa
+	0x7ff7a50cf448
+	0x7ffa0b3ee8d7
+	0x7ffa0c6ac53c
+. 재시도 중...
+[09:00:05.06] ⚠️ 연결 오류 발생: Message: invalid session id
+Stacktrace:
+Symbols not available. Dumping unresolved backtrace:
+	0x7ff7a4c8a535
+	0x7ff7a4c8a590
+	0x7ff7a4a30ea6
+	0x7ff7a4a7bca6
+	0x7ff7a4ab5942
+	0x7ff7a4aafd66
+	0x7ff7a4aaecc1
+	0x7ff7a49f99e5
+	0x7ff7a4f67b60
+	0x7ff7a4f61f5d
+	0x7ff7a4f8311a
+	0x7ff7a4ca60a5
+	0x7ff7a4cae73c
+	0x7ff7a49f87aa
+	0x7ff7a50cf448
+	0x7ffa0b3ee8d7
+	0x7ffa0c6ac53c
+. 재시도 중...
+[09:00:05.26] ⚠️ 연결 오류 발생: Message: invalid session id
+Stacktrace:
+Symbols not available. Dumping unresolved backtrace:
+	0x7ff7a4c8a535
+	0x7ff7a4c8a590
+	0x7ff7a4a30ea6
+	0x7ff7a4a7bca6
+	0x7ff7a4ab5942
+	0x7ff7a4aafd66
+	0x7ff7a4aaecc1
+	0x7ff7a49f99e5
+	0x7ff7a4f67b60
+	0x7ff7a4f61f5d
+	0x7ff7a4f8311a
+	0x7ff7a4ca60a5
+	0x7ff7a4cae73c
+	0x7ff7a49f87aa
+	0x7ff7a50cf448
+	0x7ffa0b3ee8d7
+	0x7ffa0c6ac53c
+. 재시도 중...
+[09:00:05.46] ⚠️ 연결 오류 발생: Message: invalid session id
+Stacktrace:
+Symbols not available. Dumping unresolved backtrace:
+	0x7ff7a4c8a535
+	0x7ff7a4c8a590
+	0x7ff7a4a30ea6
+	0x7ff7a4a7bca6
+	0x7ff7a4ab5942
+	0x7ff7a4aafd66
+	0x7ff7a4aaecc1
+	0x7ff7a49f99e5
+	0x7ff7a4f67b60
+	0x7ff7a4f61f5d
+	0x7ff7a4f8311a
+	0x7ff7a4ca60a5
+	0x7ff7a4cae73c
+	0x7ff7a49f87aa
+	0x7ff7a50cf448
+	0x7ffa0b3ee8d7
+	0x7ffa0c6ac53c
+. 재시도 중...
+[09:00:05.66] ⚠️ 연결 오류 발생: Message: invalid session id
+Stacktrace:
+Symbols not available. Dumping unresolved backtrace:
+	0x7ff7a4c8a535
+	0x7ff7a4c8a590
+	0x7ff7a4a30ea6
+	0x7ff7a4a7bca6
+	0x7ff7a4ab5942
+	0x7ff7a4aafd66
+	0x7ff7a4aaecc1
+	0x7ff7a49f99e5
+	0x7ff7a4f67b60
+	0x7ff7a4f61f5d
+	0x7ff7a4f8311a
+	0x7ff7a4ca60a5
+	0x7ff7a4cae73c
+	0x7ff7a49f87aa
+	0x7ff7a50cf448
+	0x7ffa0b3ee8d7
+	0x7ffa0c6ac53c
+. 재시도 중...
+[09:00:05.86] ⚠️ 연결 오류 발생: Message: invalid session id
+Stacktrace:
+Symbols not available. Dumping unresolved backtrace:
+	0x7ff7a4c8a535
+	0x7ff7a4c8a590
+	0x7ff7a4a30ea6
+	0x7ff7a4a7bca6
+	0x7ff7a4ab5942
+	0x7ff7a4aafd66
+	0x7ff7a4aaecc1
+	0x7ff7a49f99e5
+	0x7ff7a4f67b60
+	0x7ff7a4f61f5d
+	0x7ff7a4f8311a
+	0x7ff7a4ca60a5
+	0x7ff7a4cae73c
+	0x7ff7a49f87aa
+	0x7ff7a50cf448
+	0x7ffa0b3ee8d7
+	0x7ffa0c6ac53c
+. 재시도 중...
+[09:00:06.07] ⚠️ 연결 오류 발생: Message: invalid session id
+Stacktrace:
+Symbols not available. Dumping unresolved backtrace:
+	0x7ff7a4c8a535
+	0x7ff7a4c8a590
+	0x7ff7a4a30ea6
+	0x7ff7a4a7bca6
+	0x7ff7a4ab5942
+	0x7ff7a4aafd66
+	0x7ff7a4aaecc1
+	0x7ff7a49f99e5
+	0x7ff7a4f67b60
+	0x7ff7a4f61f5d
+	0x7ff7a4f8311a
+	0x7ff7a4ca60a5
+	0x7ff7a4cae73c
+	0x7ff7a49f87aa
+	0x7ff7a50cf448
+	0x7ffa0b3ee8d7
+	0x7ffa0c6ac53c
+. 재시도 중...
+[09:00:06.27] ⚠️ 연결 오류 발생: Message: invalid session id
+Stacktrace:
+Symbols not available. Dumping unresolved backtrace:
+	0x7ff7a4c8a535
+	0x7ff7a4c8a590
+	0x7ff7a4a30ea6
+	0x7ff7a4a7bca6
+	0x7ff7a4ab5942
+	0x7ff7a4aafd66
+	0x7ff7a4aaecc1
+	0x7ff7a49f99e5
+	0x7ff7a4f67b60
+	0x7ff7a4f61f5d
+	0x7ff7a4f8311a
+	0x7ff7a4ca60a5
+	0x7ff7a4cae73c
+	0x7ff7a49f87aa
+	0x7ff7a50cf448
+	0x7ffa0b3ee8d7
+	0x7ffa0c6ac53c
+. 재시도 중...
+[09:00:06.47] ⚠️ 연결 오류 발생: Message: invalid session id
+Stacktrace:
+Symbols not available. Dumping unresolved backtrace:
+	0x7ff7a4c8a535
+	0x7ff7a4c8a590
+	0x7ff7a4a30ea6
+	0x7ff7a4a7bca6
+	0x7ff7a4ab5942
+	0x7ff7a4aafd66
+	0x7ff7a4aaecc1
+	0x7ff7a49f99e5
+	0x7ff7a4f67b60
+	0x7ff7a4f61f5d
+	0x7ff7a4f8311a
+	0x7ff7a4ca60a5
+	0x7ff7a4cae73c
+	0x7ff7a49f87aa
+	0x7ff7a50cf448
+	0x7ffa0b3ee8d7
+	0x7ffa0c6ac53c
+. 재시도 중...
+[09:00:06.67] ⚠️ 연결 오류 발생: Message: invalid session id
+Stacktrace:
+Symbols not available. Dumping unresolved backtrace:
+	0x7ff7a4c8a535
+	0x7ff7a4c8a590
+	0x7ff7a4a30ea6
+	0x7ff7a4a7bca6
+	0x7ff7a4ab5942
+	0x7ff7a4aafd66
+	0x7ff7a4aaecc1
+	0x7ff7a49f99e5
+	0x7ff7a4f67b60
+	0x7ff7a4f61f5d
+	0x7ff7a4f8311a
+	0x7ff7a4ca60a5
+	0x7ff7a4cae73c
+	0x7ff7a49f87aa
+	0x7ff7a50cf448
+	0x7ffa0b3ee8d7
+	0x7ffa0c6ac53c
+. 재시도 중...
+[09:00:06.87] ⚠️ 연결 오류 발생: Message: invalid session id
+Stacktrace:
+Symbols not available. Dumping unresolved backtrace:
+	0x7ff7a4c8a535
+	0x7ff7a4c8a590
+	0x7ff7a4a30ea6
+	0x7ff7a4a7bca6
+	0x7ff7a4ab5942
+	0x7ff7a4aafd66
+	0x7ff7a4aaecc1
+	0x7ff7a49f99e5
+	0x7ff7a4f67b60
+	0x7ff7a4f61f5d
+	0x7ff7a4f8311a
+	0x7ff7a4ca60a5
+	0x7ff7a4cae73c
+	0x7ff7a49f87aa
+	0x7ff7a50cf448
+	0x7ffa0b3ee8d7
+	0x7ffa0c6ac53c
+. 재시도 중...
+[09:00:07.08] ⚠️ 연결 오류 발생: Message: invalid session id
+Stacktrace:
+Symbols not available. Dumping unresolved backtrace:
+	0x7ff7a4c8a535
+	0x7ff7a4c8a590
+	0x7ff7a4a30ea6
+	0x7ff7a4a7bca6
+	0x7ff7a4ab5942
+	0x7ff7a4aafd66
+	0x7ff7a4aaecc1
+	0x7ff7a49f99e5
+	0x7ff7a4f67b60
+	0x7ff7a4f61f5d
+	0x7ff7a4f8311a
+	0x7ff7a4ca60a5
+	0x7ff7a4cae73c
+	0x7ff7a49f87aa
+	0x7ff7a50cf448
+	0x7ffa0b3ee8d7
+	0x7ffa0c6ac53c
+. 재시도 중...
+[09:00:07.28] ⚠️ 연결 오류 발생: Message: invalid session id
+Stacktrace:
+Symbols not available. Dumping unresolved backtrace:
+	0x7ff7a4c8a535
+	0x7ff7a4c8a590
+	0x7ff7a4a30ea6
+	0x7ff7a4a7bca6
+	0x7ff7a4ab5942
+	0x7ff7a4aafd66
+	0x7ff7a4aaecc1
+	0x7ff7a49f99e5
+	0x7ff7a4f67b60
+	0x7ff7a4f61f5d
+	0x7ff7a4f8311a
+	0x7ff7a4ca60a5
+	0x7ff7a4cae73c
+	0x7ff7a49f87aa
+	0x7ff7a50cf448
+	0x7ffa0b3ee8d7
+	0x7ffa0c6ac53c
+. 재시도 중...
+[09:00:07.48] ⚠️ 연결 오류 발생: Message: invalid session id
+Stacktrace:
+Symbols not available. Dumping unresolved backtrace:
+	0x7ff7a4c8a535
+	0x7ff7a4c8a590
+	0x7ff7a4a30ea6
+	0x7ff7a4a7bca6
+	0x7ff7a4ab5942
+	0x7ff7a4aafd66
+	0x7ff7a4aaecc1
+	0x7ff7a49f99e5
+	0x7ff7a4f67b60
+	0x7ff7a4f61f5d
+	0x7ff7a4f8311a
+	0x7ff7a4ca60a5
+	0x7ff7a4cae73c
+	0x7ff7a49f87aa
+	0x7ff7a50cf448
+	0x7ffa0b3ee8d7
+	0x7ffa0c6ac53c
+. 재시도 중...
+[09:00:07.68] ⚠️ 연결 오류 발생: Message: invalid session id
+Stacktrace:
+Symbols not available. Dumping unresolved backtrace:
+	0x7ff7a4c8a535
+	0x7ff7a4c8a590
+	0x7ff7a4a30ea6
+	0x7ff7a4a7bca6
+	0x7ff7a4ab5942
+	0x7ff7a4aafd66
+	0x7ff7a4aaecc1
+	0x7ff7a49f99e5
+	0x7ff7a4f67b60
+	0x7ff7a4f61f5d
+	0x7ff7a4f8311a
+	0x7ff7a4ca60a5
+	0x7ff7a4cae73c
+	0x7ff7a49f87aa
+	0x7ff7a50cf448
+	0x7ffa0b3ee8d7
+	0x7ffa0c6ac53c
+. 재시도 중...
+[09:00:07.88] ⚠️ 연결 오류 발생: Message: invalid session id
+Stacktrace:
+Symbols not available. Dumping unresolved backtrace:
+	0x7ff7a4c8a535
+	0x7ff7a4c8a590
+	0x7ff7a4a30ea6
+	0x7ff7a4a7bca6
+	0x7ff7a4ab5942
+	0x7ff7a4aafd66
+	0x7ff7a4aaecc1
+	0x7ff7a49f99e5
+	0x7ff7a4f67b60
+	0x7ff7a4f61f5d
+	0x7ff7a4f8311a
+	0x7ff7a4ca60a5
+	0x7ff7a4cae73c
+	0x7ff7a49f87aa
+	0x7ff7a50cf448
+	0x7ffa0b3ee8d7
+	0x7ffa0c6ac53c
+. 재시도 중...
+[09:00:08.08] ⚠️ 연결 오류 발생: Message: invalid session id
+Stacktrace:
+Symbols not available. Dumping unresolved backtrace:
+	0x7ff7a4c8a535
+	0x7ff7a4c8a590
+	0x7ff7a4a30ea6
+	0x7ff7a4a7bca6
+	0x7ff7a4ab5942
+	0x7ff7a4aafd66
+	0x7ff7a4aaecc1
+	0x7ff7a49f99e5
+	0x7ff7a4f67b60
+	0x7ff7a4f61f5d
+	0x7ff7a4f8311a
+	0x7ff7a4ca60a5
+	0x7ff7a4cae73c
+	0x7ff7a49f87aa
+	0x7ff7a50cf448
+	0x7ffa0b3ee8d7
+	0x7ffa0c6ac53c
+. 재시도 중...
+[09:00:08.29] ⚠️ 연결 오류 발생: Message: invalid session id
+Stacktrace:
+Symbols not available. Dumping unresolved backtrace:
+	0x7ff7a4c8a535
+	0x7ff7a4c8a590
+	0x7ff7a4a30ea6
+	0x7ff7a4a7bca6
+	0x7ff7a4ab5942
+	0x7ff7a4aafd66
+	0x7ff7a4aaecc1
+	0x7ff7a49f99e5
+	0x7ff7a4f67b60
+	0x7ff7a4f61f5d
+	0x7ff7a4f8311a
+	0x7ff7a4ca60a5
+	0x7ff7a4cae73c
+	0x7ff7a49f87aa
+	0x7ff7a50cf448
+	0x7ffa0b3ee8d7
+	0x7ffa0c6ac53c
+. 재시도 중...
+[09:00:08.49] ⚠️ 연결 오류 발생: Message: invalid session id
+Stacktrace:
+Symbols not available. Dumping unresolved backtrace:
+	0x7ff7a4c8a535
+	0x7ff7a4c8a590
+	0x7ff7a4a30ea6
+	0x7ff7a4a7bca6
+	0x7ff7a4ab5942
+	0x7ff7a4aafd66
+	0x7ff7a4aaecc1
+	0x7ff7a49f99e5
+	0x7ff7a4f67b60
+	0x7ff7a4f61f5d
+	0x7ff7a4f8311a
+	0x7ff7a4ca60a5
+	0x7ff7a4cae73c
+	0x7ff7a49f87aa
+	0x7ff7a50cf448
+	0x7ffa0b3ee8d7
+	0x7ffa0c6ac53c
+. 재시도 중...
+[09:00:08.69] ⚠️ 연결 오류 발생: Message: invalid session id
+Stacktrace:
+Symbols not available. Dumping unresolved backtrace:
+	0x7ff7a4c8a535
+	0x7ff7a4c8a590
+	0x7ff7a4a30ea6
+	0x7ff7a4a7bca6
+	0x7ff7a4ab5942
+	0x7ff7a4aafd66
+	0x7ff7a4aaecc1
+	0x7ff7a49f99e5
+	0x7ff7a4f67b60
+	0x7ff7a4f61f5d
+	0x7ff7a4f8311a
+	0x7ff7a4ca60a5
+	0x7ff7a4cae73c
+	0x7ff7a49f87aa
+	0x7ff7a50cf448
+	0x7ffa0b3ee8d7
+	0x7ffa0c6ac53c
+. 재시도 중...
+[09:00:08.89] ⚠️ 연결 오류 발생: Message: invalid session id
+Stacktrace:
+Symbols not available. Dumping unresolved backtrace:
+	0x7ff7a4c8a535
+	0x7ff7a4c8a590
+	0x7ff7a4a30ea6
+	0x7ff7a4a7bca6
+	0x7ff7a4ab5942
+	0x7ff7a4aafd66
+	0x7ff7a4aaecc1
+	0x7ff7a49f99e5
+	0x7ff7a4f67b60
+	0x7ff7a4f61f5d
+	0x7ff7a4f8311a
+	0x7ff7a4ca60a5
+	0x7ff7a4cae73c
+	0x7ff7a49f87aa
+	0x7ff7a50cf448
+	0x7ffa0b3ee8d7
+	0x7ffa0c6ac53c
+. 재시도 중...
+[09:00:09.10] ⚠️ 연결 오류 발생: Message: invalid session id
+Stacktrace:
+Symbols not available. Dumping unresolved backtrace:
+	0x7ff7a4c8a535
+	0x7ff7a4c8a590
+	0x7ff7a4a30ea6
+	0x7ff7a4a7bca6
+	0x7ff7a4ab5942
+	0x7ff7a4aafd66
+	0x7ff7a4aaecc1
+	0x7ff7a49f99e5
+	0x7ff7a4f67b60
+	0x7ff7a4f61f5d
+	0x7ff7a4f8311a
+	0x7ff7a4ca60a5
+	0x7ff7a4cae73c
+	0x7ff7a49f87aa
+	0x7ff7a50cf448
+	0x7ffa0b3ee8d7
+	0x7ffa0c6ac53c
+. 재시도 중...
+[09:00:09.30] ⚠️ 연결 오류 발생: Message: invalid session id
+Stacktrace:
+Symbols not available. Dumping unresolved backtrace:
+	0x7ff7a4c8a535
+	0x7ff7a4c8a590
+	0x7ff7a4a30ea6
+	0x7ff7a4a7bca6
+	0x7ff7a4ab5942
+	0x7ff7a4aafd66
+	0x7ff7a4aaecc1
+	0x7ff7a49f99e5
+	0x7ff7a4f67b60
+	0x7ff7a4f61f5d
+	0x7ff7a4f8311a
+	0x7ff7a4ca60a5
+	0x7ff7a4cae73c
+	0x7ff7a49f87aa
+	0x7ff7a50cf448
+	0x7ffa0b3ee8d7
+	0x7ffa0c6ac53c
+. 재시도 중...

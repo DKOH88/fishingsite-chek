@@ -192,6 +192,7 @@ class DojiBot(BaseFishingBot):
             
             try:
                 # 4.1 낚시 종류 선택
+                step_start = time.time()
                 self.log("🎣 낚시 종류 선택 중...")
                 target_keywords = ['갑오징어', '쭈꾸미', '쭈갑']
                 found_fish = False
@@ -201,7 +202,7 @@ class DojiBot(BaseFishingBot):
                     self.log(f"🔎 Found {len(radios)} fish type options")
                     
                     if len(radios) == 1:
-                        self.log("✨ 단일 어종만 있음, 자동 선택")
+                        self.log(f"✨ 단일 어종만 있음, 자동 선택 (소요시간: {time.time()-step_start:.2f}초)")
                         self.driver.execute_script("arguments[0].click();", radios[0])
                         found_fish = True
                         time.sleep(0.01)
@@ -217,7 +218,7 @@ class DojiBot(BaseFishingBot):
                                         parent_dt = fish_span.find_element(By.XPATH, "./ancestor::dt[@class='fishtype']")
                                         radio = parent_dt.find_element(By.CSS_SELECTOR, "input[type='radio'][name='default_schedule_no']")
                                         self.driver.execute_script("arguments[0].click();", radio)
-                                        self.log(f"✅ Selected fish type: {keyword}")
+                                        self.log(f"✅ Selected fish type: {keyword} (소요시간: {time.time()-step_start:.2f}초)")
                                         time.sleep(0.01)
                                         found_fish = True
                                         break
@@ -257,17 +258,19 @@ class DojiBot(BaseFishingBot):
                         continue  # 새 브라우저로 재시도
 
                     # 4.3a 인원 선택
+                    step_start = time.time()
                     self.log(f"👥 인원 선택 중... ({target_count}명)")
                     try:
                         plus_btn = self.driver.find_element(By.CSS_SELECTOR, "a.plus")
                         for i in range(target_count):
                             plus_btn.click()
                             time.sleep(0.01)
-                        self.log(f"✅ 인원 {target_count}명 설정 완료")
+                        self.log(f"✅ 인원 {target_count}명 설정 완료 (소요시간: {time.time()-step_start:.2f}초)")
                     except Exception as e:
                         self.log(f"⚠️ Person count selection error: {e}")
                     
                     # 4.4a 좌석 선택 (아무 좌석)
+                    step_start = time.time()
                     self.log(f"💺 좌석 선택 중... ({target_count}석)")
                     selected_seats = 0
                     for checkbox in available_checkboxes:
@@ -280,26 +283,28 @@ class DojiBot(BaseFishingBot):
                                 time.sleep(0.01)
                         except:
                             continue
-                    self.log(f"✅ 좌석 선택 완료! 총 {selected_seats}석")
+                    self.log(f"✅ 좌석 선택 완료! 총 {selected_seats}석 (소요시간: {time.time()-step_start:.2f}초)")
                 else:
                     # 4.2b 인원 선택만
+                    step_start = time.time()
                     self.log(f"👥 인원 선택 중... ({configured_count}명)")
                     try:
                         plus_btn = self.driver.find_element(By.CSS_SELECTOR, "a.plus")
                         for i in range(configured_count):
                             plus_btn.click()
                             time.sleep(0.01)
-                        self.log(f"✅ 인원 {configured_count}명 설정 완료")
+                        self.log(f"✅ 인원 {configured_count}명 설정 완료 (소요시간: {time.time()-step_start:.2f}초)")
                     except Exception as e:
                         self.log(f"⚠️ Person count selection error: {e}")
 
                 # 4.3 예약자 정보 입력
+                step_start = time.time()
                 self.log("✍️ 예약 정보 입력 중...")
                 try:
                     name_input = self.driver.find_element(By.CSS_SELECTOR, "input[name='name']")
                     name_input.clear()
                     name_input.send_keys(user_name)
-                    self.log(f"✅ 예약자명 입력: {user_name}")
+                    self.log(f"✅ 예약자명 입력: {user_name} (소요시간: {time.time()-step_start:.2f}초)")
                     time.sleep(0.01)
                     
                     try:
@@ -307,7 +312,7 @@ class DojiBot(BaseFishingBot):
                         if user_depositor and user_depositor != user_name:
                             deposit_input.clear()
                             deposit_input.send_keys(user_depositor)
-                            self.log(f"✅ 입금자명 입력: {user_depositor}")
+                            self.log(f"✅ 입금자명 입력: {user_depositor} (소요시간: {time.time()-step_start:.2f}초)")
                             time.sleep(0.01)
                     except: pass
                     
@@ -324,24 +329,26 @@ class DojiBot(BaseFishingBot):
                         time.sleep(0.01)
                         phone3_input = self.driver.find_element(By.CSS_SELECTOR, "input[name='phone3']")
                         phone3_input.send_keys(p3)
-                        self.log(f"✅ 전화번호 입력: {p2}-{p3}")
+                        self.log(f"✅ 전화번호 입력: {p2}-{p3} (소요시간: {time.time()-step_start:.2f}초)")
                         time.sleep(0.01)
                 except Exception as e:
                     self.log(f"⚠️ Info input error: {e}")
 
                 # 4.4 전체 동의 체크
                 try:
+                    step_start = time.time()
                     all_check = self.driver.find_element(By.CSS_SELECTOR, "input[name='all_check']")
                     if not all_check.is_selected():
                         self.driver.execute_script("arguments[0].click();", all_check)
-                        self.log("✅ 전체 동의 체크")
+                        self.log(f"✅ 전체 동의 체크 (소요시간: {time.time()-step_start:.2f}초)")
                 except Exception as e:
                     self.log(f"⚠️ All check error: {e}")
 
-                time.sleep(0.005)  # 전체 동의 후 안정화 딜레이
+                time.sleep(0.05)  # 전체 동의 후 안정화 딜레이
                 
                 # 4.5 예약하기 버튼 클릭
-                self.log("🚀 예약하기 버튼 클릭...")
+                step_start = time.time()
+                self.log(f"🚀 예약하기 버튼 클릭...")
                 try:
                     submit_btn = self.driver.find_element(By.CSS_SELECTOR, "#btn_payment, a.btn_payment")
                     self.driver.execute_script("arguments[0].click();", submit_btn)
@@ -350,12 +357,17 @@ class DojiBot(BaseFishingBot):
                     try:
                         alert = WebDriverWait(self.driver, 3).until(EC.alert_is_present())
                         alert_text = alert.text
-                        self.log(f"🔔 Alert: {alert_text}")
+                        self.log(f"🔔 Alert: {alert_text} (소요시간: {time.time()-step_start:.2f}초)")
                         
                         if not self.simulation_mode:
                             alert.accept()
                         else:
                             self.log("🛑 시뮬레이션 모드: 알림창 확인 후 중단")
+                            try:
+                                elapsed_time = time.time() - process_start_time
+                                self.log(f"⏱️ 총 소요 시간: {elapsed_time:.2f}초")
+                            except: pass
+                            self.log("✅ 예약 봇 실행 시퀀스가 모두 완료되었습니다.")
                             return
                     except:
                         pass  # 알림창 없음
