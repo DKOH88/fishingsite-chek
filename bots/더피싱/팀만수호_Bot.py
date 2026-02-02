@@ -16,7 +16,7 @@ os.environ['https_proxy'] = ''
 os.environ['NO_PROXY'] = '*'
 
 
-class ManseokBot(BaseFishingBot):
+class TeammansuBot(BaseFishingBot):
     def __init__(self, config):
         super().__init__(config)
         self.success_event = threading.Event()
@@ -64,6 +64,7 @@ class ManseokBot(BaseFishingBot):
         
         # 2.5 Pre-load / Warm-up
         self.log(f"🌍 페이지 사전 로드 중: {url}")
+        self.log("##########🔎 팀만수호 예약로직 시작!##########")
         try:
              self.driver.get(url)
              self.log("✅ 사전 로드 완료. 오픈 시간을 기다립니다...")
@@ -80,7 +81,7 @@ class ManseokBot(BaseFishingBot):
         # 3. Start "Smart Refresh Loop" at target time
         self.log(f"🔥 예약 시도 시작 (반복 루프): {url}")
         
-        # [NEW] Infinite Loop Wrapper (FriendBot Style)
+        # [NEW] Infinite Loop Wrapper
         while True:
             max_retries = 5000 
             retry_interval = 0.2 
@@ -159,7 +160,7 @@ class ManseokBot(BaseFishingBot):
                     target_keywords = []
                     target_ship_cfg = self.config.get('target_ship', '').strip()
                     if target_ship_cfg: target_keywords.append(target_ship_cfg)
-                    # Manseok Specific Keywords
+                    # Specific Keywords
                     target_keywords.extend(['갑오징어', '쭈꾸미', '쭈갑', '쭈꾸미&갑오징어'])
                     
                     found_click = False
@@ -268,7 +269,7 @@ class ManseokBot(BaseFishingBot):
             except Exception as e:
                 self.log(f"⚠️ 남은 좌석 수 확인 실패, 설정값 사용: {e}")
 
-            # Step 1.25: Seat Selection (Manseok-ho Specific)
+            # Step 1.25: Seat Selection
             step_start = time.time()
             seat_priority = ['1', '11', '10', '20', '2', '12', '9', '19', '3', '13', '8', '18']
             selected_seats = 0
@@ -420,7 +421,7 @@ class ManseokBot(BaseFishingBot):
                     self.log(f"✅ '전체 동의' 체크박스 클릭 완료. (소요시간: {time.time()-step_start:.2f}초)")
                 except: pass
 
-                # Step 3: Submit Logic (FriendBot style)
+                # Step 3: Submit Logic
                 self.log("🚀 '예약 신청하기' 버튼 클릭 시도...")
                 max_submit_retries = 2
                 for submit_attempt in range(max_submit_retries):
@@ -435,7 +436,7 @@ class ManseokBot(BaseFishingBot):
                         alert_text = alert.text
                         self.log(f"🔔 알림창 확인: {alert_text} (소요시간: {time.time()-step_start:.2f}초)")
                         
-                        # [FriendBot Logic] Error -> Hard Restart
+                        # Error -> Hard Restart
                         if "정상적으로 예약해 주십시오" in alert_text:
                             self.log("⚠️ 오류! 처음부터 다시 시작.")
                             try:
@@ -545,6 +546,6 @@ if __name__ == "__main__":
     parser.add_argument("--config", required=True)
     args = parser.parse_args()
     with open(args.config, 'r', encoding='utf-8') as f: config = json.load(f)
-    bot = ManseokBot(config)
+    bot = TeammansuBot(config)
     try: bot.run()
     except KeyboardInterrupt: bot.stop()

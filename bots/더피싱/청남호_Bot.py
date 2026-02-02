@@ -16,7 +16,7 @@ os.environ['https_proxy'] = ''
 os.environ['NO_PROXY'] = '*'
 
 
-class FriendBot(BaseFishingBot):
+class CheongNamHoBot(BaseFishingBot):
     def __init__(self, config):
         super().__init__(config)
         self.success_event = threading.Event()
@@ -25,10 +25,23 @@ class FriendBot(BaseFishingBot):
     
     def monitor_browser_for_success(self, driver, browser_id):
         """별도 스레드에서 브라우저 성공 여부 모니터링"""
-        self.log(f"🔍 [브라우저{browser_id}] 백그라운드 모니터링 시작...")
+        self.log(f"🔍 [브라우저{browser_id}] 백그라운드 모니터링/구조 작업 시작...")
         
         while not self.success_event.is_set():
             try:
+                # 0. Handle Unexpected Alert (Success or Confirm)
+                try:
+                    alert = driver.switch_to.alert
+                    txt = alert.text
+                    if "완료" in txt or "성공" in txt:
+                        self.log(f"🎉 [브라우저{browser_id}] 예약 성공! (알림창: {txt})")
+                        alert.accept()
+                        self.success_event.set()
+                        return
+                    else:
+                        alert.accept()
+                except: pass
+
                 # 조건 A: URL
                 if "step3.php" in driver.current_url:
                     self.log(f"🎉 [브라우저{browser_id}] 예약 성공! (URL: step3.php)")
@@ -47,10 +60,17 @@ class FriendBot(BaseFishingBot):
                     self.log(f"🎉 [브라우저{browser_id}] 예약 성공! (탭 활성화)")
                     self.success_event.set()
                     return
+
+                # 2. Rescue Logic: Click Step 2 Submit if visible
+                if "step2.php" in driver.current_url:
+                    try:
+                         btn = driver.find_element(By.ID, "submit")
+                         driver.execute_script("arguments[0].click();", btn)
+                    except: pass
             except:
                 pass
             
-            time.sleep(0.05)
+            time.sleep(0.1)
         
         self.log(f"🛑 [브라우저{browser_id}] 다른 브라우저 성공으로 모니터링 중지")
 
@@ -362,7 +382,9 @@ class FriendBot(BaseFishingBot):
                             break
                         alert.accept()
                         
+
                         if self.simulation_mode:
+                            self.log(f"✨ [ Simulation Mode ] STEP 2 진입 확인 ({detection_method})")
                             self.log("🛑 시뮬레이션 종료")
                             try:
                                 elapsed_time = time.time() - process_start_time
@@ -370,17 +392,44 @@ class FriendBot(BaseFishingBot):
                             except: pass
                             self.log("✅ 예약 봇 실행 시퀀스가 모두 완료되었습니다.")
                             return
-                            
-                        # Wait for Step 2
-                        self.log("⏳ [STEP 2] 진입 대기 중 (5초 폴링)...")
+
+                        # Execute Step 2 Submit
+                        self.log("🚀 [STEP 2] '예약 신청하기' 버튼 클릭 대기 및 시도...")
+                        try:
+                            submit_btn_step2 = WebDriverWait(self.driver, 2).until(
+                                EC.element_to_be_clickable((By.ID, "submit"))
+                            )
+                            self.driver.execute_script("arguments[0].click();", submit_btn_step2)
+                            self.log("✨ [STEP 2] 버튼 클릭 성공!")
+                        except Exception as e2:
+                             self.log(f"⚠️ [STEP 2] 버튼 클릭 실패 (2초 타임아웃): {e2}")
+                             self.log("🔄 현재 브라우저는 백그라운드 모니터링(구조대)으로 전환하고, 새 브라우저를 띄웁니다.")
+                             
+                             # 1. Move current driver to background monitoring
+                             old_driver = self.driver
+                             browser_id = len(self.browsers) + 1
+                             self.browsers.append(old_driver)
+                             
+                             t = threading.Thread(target=self.monitor_browser_for_success, args=(old_driver, browser_id))
+                             t.daemon = True
+                             t.start()
+                             self.browser_threads.append(t)
+                             
+                             # 2. Launch new driver & Restart loop
+                             self.setup_driver()
+                             wait = WebDriverWait(self.driver, 30)
+                             break # Break to restart outer 'while True' loop with new driver
+                        self.log("⏳ [STEP 2] 진입 대기 중 (3초 폴링)...")
                         step2_start_time = time.time()
                         step2_entered = False
+                        detection_method = ""
                         
-                        while time.time() - step2_start_time < 10:
+                        while time.time() - step2_start_time < 3:
                             try:
                                 # Check URL
                                 if "step2.php" in self.driver.current_url:
                                     step2_entered = True
+                                    detection_method = "URL (step2.php)"
                                     self.log("✨ [STEP 2] URL 감지됨 (step2.php)")
                                     time.sleep(0.05)
                                     break
@@ -389,13 +438,14 @@ class FriendBot(BaseFishingBot):
                                 step2_items = self.driver.find_elements(By.CSS_SELECTOR, ".top_tab_menu2 li, .top_tab_menu li")
                                 if len(step2_items) >= 2 and "on" in step2_items[1].get_attribute("class"): 
                                     step2_entered = True
+                                    detection_method = "탭 활성화 (top_tab_menu)"
                                     self.log("✨ [STEP 2] 탭 활성화 감지됨")
                                     break
                             except: pass
-                            time.sleep(0.1)
+                            time.sleep(0.01)
                             
                         if not step2_entered:
-                            self.log("⚠️ [STEP 2] 진입 실패 (타임아웃). 백그라운드 모니터링 + 새 브라우저...")
+                            self.log("⚠️ [STEP 2] 진입 실패 (3초 타임아웃). 백그라운드 모니터링 + 새 브라우저...")
                             
                             # 현재 브라우저를 백그라운드 모니터링으로 전환
                             old_driver = self.driver
@@ -413,12 +463,31 @@ class FriendBot(BaseFishingBot):
                             break # Exit to outer while True loop with new browser
                             
                         # Execute Step 2 Submit
-                        self.log("🚀 [STEP 2] '예약 신청하기' 버튼 클릭!")
+                        self.log("🚀 [STEP 2] '예약 신청하기' 버튼 클릭 대기 및 시도...")
                         try:
-                            submit_btn_step2 = self.driver.find_element(By.ID, "submit")
+                            submit_btn_step2 = WebDriverWait(self.driver, 2).until(
+                                EC.element_to_be_clickable((By.ID, "submit"))
+                            )
                             self.driver.execute_script("arguments[0].click();", submit_btn_step2)
+                            self.log("✨ [STEP 2] 버튼 클릭 성공!")
                         except Exception as e2:
-                             self.log(f"⚠️ [STEP 2] 버튼 클릭 실패: {e2}")
+                             self.log(f"⚠️ [STEP 2] 버튼 클릭 실패 (2초 타임아웃): {e2}")
+                             self.log("🔄 현재 브라우저는 백그라운드 모니터링(구조대)으로 전환하고, 새 브라우저를 띄웁니다.")
+                             
+                             # 1. Move current driver to background monitoring
+                             old_driver = self.driver
+                             browser_id = len(self.browsers) + 1
+                             self.browsers.append(old_driver)
+                             
+                             t = threading.Thread(target=self.monitor_browser_for_success, args=(old_driver, browser_id))
+                             t.daemon = True
+                             t.start()
+                             self.browser_threads.append(t)
+                             
+                             # 2. Launch new driver & Restart loop
+                             self.setup_driver()
+                             wait = WebDriverWait(self.driver, 30)
+                             break # Break to restart outer 'while True' loop with new driver
                              
                         # Wait for Step 3 (Success)
                         self.log("⏳ [STEP 3] 최종 완료 확인 대기 중 (5초 폴링)...")
@@ -492,6 +561,6 @@ if __name__ == "__main__":
     parser.add_argument("--config", required=True)
     args = parser.parse_args()
     with open(args.config, 'r', encoding='utf-8') as f: config = json.load(f)
-    bot = FriendBot(config)
+    bot = CheongNamHoBot(config)
     try: bot.run()
     except KeyboardInterrupt: bot.stop()
