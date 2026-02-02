@@ -382,43 +382,6 @@ class CheongNamHoBot(BaseFishingBot):
                             break
                         alert.accept()
                         
-
-                        if self.simulation_mode:
-                            self.log(f"✨ [ Simulation Mode ] STEP 2 진입 확인 ({detection_method})")
-                            self.log("🛑 시뮬레이션 종료")
-                            try:
-                                elapsed_time = time.time() - process_start_time
-                                self.log(f"⏱️ 총 소요 시간: {elapsed_time:.2f}초")
-                            except: pass
-                            self.log("✅ 예약 봇 실행 시퀀스가 모두 완료되었습니다.")
-                            return
-
-                        # Execute Step 2 Submit
-                        self.log("🚀 [STEP 2] '예약 신청하기' 버튼 클릭 대기 및 시도...")
-                        try:
-                            submit_btn_step2 = WebDriverWait(self.driver, 2).until(
-                                EC.element_to_be_clickable((By.ID, "submit"))
-                            )
-                            self.driver.execute_script("arguments[0].click();", submit_btn_step2)
-                            self.log("✨ [STEP 2] 버튼 클릭 성공!")
-                        except Exception as e2:
-                             self.log(f"⚠️ [STEP 2] 버튼 클릭 실패 (2초 타임아웃): {e2}")
-                             self.log("🔄 현재 브라우저는 백그라운드 모니터링(구조대)으로 전환하고, 새 브라우저를 띄웁니다.")
-                             
-                             # 1. Move current driver to background monitoring
-                             old_driver = self.driver
-                             browser_id = len(self.browsers) + 1
-                             self.browsers.append(old_driver)
-                             
-                             t = threading.Thread(target=self.monitor_browser_for_success, args=(old_driver, browser_id))
-                             t.daemon = True
-                             t.start()
-                             self.browser_threads.append(t)
-                             
-                             # 2. Launch new driver & Restart loop
-                             self.setup_driver()
-                             wait = WebDriverWait(self.driver, 30)
-                             break # Break to restart outer 'while True' loop with new driver
                         self.log("⏳ [STEP 2] 진입 대기 중 (3초 폴링)...")
                         step2_start_time = time.time()
                         step2_entered = False
@@ -461,7 +424,17 @@ class CheongNamHoBot(BaseFishingBot):
                             self.setup_driver()
                             wait = WebDriverWait(self.driver, 30)
                             break # Exit to outer while True loop with new browser
-                            
+
+                        if self.simulation_mode:
+                            self.log(f"✨ [ Simulation Mode ] STEP 2 진입 확인 ({detection_method})")
+                            self.log("🛑 시뮬레이션 종료")
+                            try:
+                                elapsed_time = time.time() - process_start_time
+                                self.log(f"⏱️ 총 소요 시간: {elapsed_time:.2f}초")
+                            except: pass
+                            self.log("✅ 예약 봇 실행 시퀀스가 모두 완료되었습니다.")
+                            return
+
                         # Execute Step 2 Submit
                         self.log("🚀 [STEP 2] '예약 신청하기' 버튼 클릭 대기 및 시도...")
                         try:
