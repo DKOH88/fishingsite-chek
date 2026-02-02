@@ -24,9 +24,23 @@ class JanghyunBot(BaseFishingBot):
         self.browsers = []
     
     def monitor_browser_for_success(self, driver, browser_id):
-        self.log(f"🔍 [브라우저{browser_id}] 백그라운드 모니터링 시작...")
+        self.log(f"🔍 [브라우저{browser_id}] 백그라운드 모니터링/구조 작업 시작...")
         while not self.success_event.is_set():
             try:
+                # 0. Handle Unexpected Alert (Success or Confirm)
+                try:
+                    alert = driver.switch_to.alert
+                    txt = alert.text
+                    if "완료" in txt or "성공" in txt:
+                        self.log(f"🎉 [브라우저{browser_id}] 예약 성공! (알림창: {txt})")
+                        alert.accept()
+                        self.success_event.set()
+                        return
+                    else:
+                        alert.accept()
+                except: pass
+
+                # 1. Success Checks
                 if "step2.php" in driver.current_url:
                     self.log(f"🎉 [브라우저{browser_id}] 예약 성공! (URL)")
                     self.success_event.set()
@@ -40,6 +54,13 @@ class JanghyunBot(BaseFishingBot):
                     self.log(f"🎉 [브라우저{browser_id}] 예약 성공! (STEP 02)")
                     self.success_event.set()
                     return
+
+                 # 2. Rescue Logic: Click Step 1 Submit if still there
+                try:
+                     btn = driver.find_element(By.ID, "submit")
+                     driver.execute_script("arguments[0].click();", btn)
+                except: pass
+
             except: pass
             time.sleep(0.1)
         self.log(f"🛑 [브라우저{browser_id}] 모니터링 중지")
@@ -340,11 +361,11 @@ class JanghyunBot(BaseFishingBot):
                         if not self.simulation_mode:
                             alert.accept()
                             
-                            self.log("🔔 결과 확인 대기 중 (알림창 or 페이지 변화)...")
+                            self.log("🔔 결과 확인 대기 중 (알림창 or 페이지 변화) - 3초 타임아웃...")
                             check_start_time = time.time()
                             success_detected = False
                             
-                            while time.time() - check_start_time < 5:
+                            while time.time() - check_start_time < 3:
                                 # 1. Check Alert (Only for Failure)
                                 try:
                                     alert = self.driver.switch_to.alert
@@ -391,7 +412,7 @@ class JanghyunBot(BaseFishingBot):
                                 except:
                                     pass
                                 
-                                time.sleep(0.1) # Fast polling
+                                time.sleep(0.01) # Fast polling
 
                             if should_hard_restart:
                                 break
@@ -404,8 +425,21 @@ class JanghyunBot(BaseFishingBot):
                                 self.log("✅ 예약 봇 실행 시퀀스가 모두 완료되었습니다.")
                                 return
 
-                            self.log("⚠️ 5초 대기 후에도 결과 미확인. 재시도...")
-                            break
+                            self.log("⚠️ 3초 대기 후에도 결과 미확인. 백그라운드 전환 + 새 브라우저...")
+                            
+                            # Move to background
+                            old_driver = self.driver
+                            browser_id = len(self.browsers) + 1
+                            self.browsers.append(old_driver)
+                            t = threading.Thread(target=self.monitor_browser_for_success, args=(old_driver, browser_id))
+                            t.daemon = True
+                            t.start()
+                            self.browser_threads.append(t)
+                            
+                            # New Driver
+                            self.setup_driver()
+                            wait = WebDriverWait(self.driver, 30)
+                            break # Exit submit loop, trigger restart
                         else:
                             self.log("🛑 시뮬레이션 종료")
                             try:
