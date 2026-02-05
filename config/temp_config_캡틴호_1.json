@@ -1,25 +1,25 @@
 {
-    "target_time": "11:22:15",
+    "target_time": "13:00:00",
     "multi_instance": [
         {
             "enable": true,
             "port": "오천항",
-            "provider": "샤크호",
-            "date": "20501012",
+            "provider": "캡틴호",
+            "date": "20260920",
             "person_count": "1",
-            "user_name": "김명호",
+            "user_name": "오동균",
             "user_depositor": "",
-            "user_phone": "010-5961-6149"
+            "user_phone": "010-2345-6149"
         },
         {
-            "enable": false,
-            "port": "영목항",
-            "provider": "청남호",
-            "date": "20261119",
+            "enable": true,
+            "port": "오천항",
+            "provider": "캡틴호",
+            "date": "20260923",
             "person_count": "1",
-            "user_name": "김재현",
+            "user_name": "이순자",
             "user_depositor": "",
-            "user_phone": "010-5961-2597"
+            "user_phone": "010-5961-6149"
         },
         {
             "enable": false,
@@ -42,17 +42,18 @@
             "user_phone": "010-0105-9612"
         }
     ],
-    "test_mode": true,
-    "simulation_mode": true,
-    "target_date": "20501012",
+    "test_mode": false,
+    "simulation_mode": false,
+    "early_monitor": true,
+    "target_date": "20260923",
     "person_count": "1",
-    "user_name": "김명호",
+    "user_name": "이순자",
     "user_depositor": "",
     "user_phone": "010-5961-6149",
     "port": "오천항",
-    "provider": "샤크호",
-    "window_x": 0,
+    "provider": "캡틴호",
+    "window_x": 960,
     "window_y": 0,
-    "window_width": 2560,
-    "window_height": 1440
+    "window_width": 960,
+    "window_height": 1200
 }

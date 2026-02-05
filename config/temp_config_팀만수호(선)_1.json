@@ -1,48 +1,48 @@
 {
-    "target_time": "16:49:45",
+    "target_time": "20:00:00",
     "multi_instance": [
         {
-            "enable": true,
-            "port": "영흥도",
-            "provider": "팀만수호(선)",
-            "date": "20501007",
-            "person_count": "2",
-            "user_name": "박성민",
+            "enable": false,
+            "port": "삼길포항",
+            "provider": "만석호(선)",
+            "date": "20500901",
+            "person_count": "4",
+            "user_name": "김재현",
             "user_depositor": "",
-            "user_phone": "010-4562-1798"
+            "user_phone": "010-5961-2597"
         },
         {
             "enable": true,
             "port": "영흥도",
             "provider": "팀만수호(선)",
-            "date": "20501007",
-            "person_count": "2",
-            "user_name": "박성민",
+            "date": "20261119",
+            "person_count": "1",
+            "user_name": "김재현",
             "user_depositor": "",
-            "user_phone": "010-4562-1798"
+            "user_phone": "010-5961-2597"
         },
         {
             "enable": false,
-            "port": "여수",
-            "provider": "오션스타3호",
-            "date": "20260206",
+            "port": "오천항",
+            "provider": "빅보스호",
+            "date": "20260920",
             "person_count": "1",
-            "user_name": "박성민",
+            "user_name": "오동균",
             "user_depositor": "",
-            "user_phone": ""
+            "user_phone": "010-2345-6149"
         }
     ],
-    "test_mode": false,
+    "test_mode": true,
     "simulation_mode": true,
-    "target_date": "20501007",
-    "person_count": "2",
-    "user_name": "박성민",
+    "target_date": "20261119",
+    "person_count": "1",
+    "user_name": "김재현",
     "user_depositor": "",
-    "user_phone": "010-4562-1798",
+    "user_phone": "010-5961-2597",
     "port": "영흥도",
     "provider": "팀만수호(선)",
-    "window_x": 1280,
+    "window_x": 0,
     "window_y": 0,
-    "window_width": 1280,
-    "window_height": 1440
+    "window_width": 1920,
+    "window_height": 1200
 }

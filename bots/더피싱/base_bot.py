@@ -170,7 +170,7 @@ class BaseFishingBot:
         return datetime.now()
 
     def wait_until_target_time(self, target_time_str):
-        """Precision wait logic"""
+        """Precision wait logic with early open monitoring"""
         now = datetime.now()
         # Support both HH:MM:SS and HH:MM:SS.f
         try:
@@ -181,10 +181,19 @@ class BaseFishingBot:
         # Adjust target date if time already passed
         if target_dt < now:
              target_dt = target_dt + timedelta(days=1)
+        
+        # 🔍 조기오픈 감시 설정 확인
+        early_monitor = self.config.get('early_monitor', False)
+        early_monitor_start = target_dt - timedelta(minutes=5)  # 5분 전부터 감시
+        
+        if early_monitor:
+            self.log(f"🔍 조기오픈 감시 활성화: {early_monitor_start.strftime('%H:%M:%S')}부터 10초마다 페이지 확인")
              
         self.log(f"⏰ 목표 시간 대기 중: {target_dt} (현재 시간 기준)")
         
         last_display_second = -1
+        last_early_check = None  # 마지막 조기오픈 체크 시간
+        
         while self.is_running:
             now = datetime.now()
             diff = (target_dt - now).total_seconds()
@@ -193,6 +202,40 @@ class BaseFishingBot:
                 print()  # New line after countdown
                 self.log("🚀 예약 오픈 시간입니다! 작업을 시작합니다!")
                 break
+            
+            # 🔍 조기오픈 감시 로직 (5분 전부터 10초마다)
+            if early_monitor and now >= early_monitor_start:
+                should_check = False
+                if last_early_check is None:
+                    should_check = True
+                elif (now - last_early_check).total_seconds() >= 10:
+                    should_check = True
+                
+                if should_check:
+                    last_early_check = now
+                    try:
+                        # 페이지 새로고침 후 소스 확인
+                        self.driver.refresh()
+                        time.sleep(0.5)  # 잠시 대기
+                        page_source = self.driver.page_source
+                        
+                        # 예약 페이지 감지 키워드
+                        open_keywords = ['STEP 01', '예약1단계', '배 선택', 'ps_selis', 'PS_N_UID']
+                        closed_keywords = ['준비 중', '오픈 예정', '예약 불가', '접수 마감', '없는', '권한', '잘못']
+                        
+                        # 페이지 오픈 여부 판단
+                        is_open = any(kw in page_source for kw in open_keywords)
+                        is_closed = any(kw in page_source for kw in closed_keywords)
+                        
+                        if is_open and not is_closed:
+                            print()  # New line
+                            self.log("🎉🎉🎉 조기 오픈 감지! 예약 페이지가 열렸습니다!")
+                            self.log(f"   (예정: {target_dt.strftime('%H:%M:%S')}, 실제: {now.strftime('%H:%M:%S')}, {diff:.0f}초 일찍 오픈)")
+                            break  # 즉시 예약 로직 시작
+                        else:
+                            self.log(f"🔍 조기오픈 체크: 아직 미오픈 (남은시간: {int(diff)}초)")
+                    except Exception as e:
+                        self.log(f"⚠️ 조기오픈 체크 오류: {e}")
             
             # Display countdown on same line, updating every second
             current_second = int(diff)

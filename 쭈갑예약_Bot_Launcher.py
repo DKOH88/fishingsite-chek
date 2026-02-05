@@ -28,6 +28,7 @@ PORTS = {
         "❌ 블루호": "더피싱/블루호_Bot.py",
         "빅보스호": "선상24/빅보스호_Bot.py", 
         "샤크호": "더피싱/샤크호_Bot.py",
+        "샤크호(API)": "api/샤크호_API.py",
         "비엔나호": "더피싱/비엔나호_Bot.py",
         "싸부호": None,
         "아리랑1호": "선상24/아리랑1호.py",
@@ -39,7 +40,8 @@ PORTS = {
         "프랜드호": "더피싱/프랜드호_Bot.py", 
         "프린스호": "선상24/프린스호_Bot.py", 
         "호랭이호": "선상24/호랭이호_Bot.py",
-        "범블비호": "더피싱/범블비호_Bot.py"
+        "범블비호": "더피싱/범블비호_Bot.py",
+        "캡틴호": "더피싱/캡틴호_Bot.py"
     },
     "안흥·신진항": {  # 15개
         "골드피싱호": "더피싱/안흥골드피싱호_Bot.py", 
@@ -70,6 +72,7 @@ PORTS = {
         "야호(선)": "더피싱/야호_Bot.py", 
         "짱구호(선)": "더피싱/짱구호_Bot.py", 
         "팀만수호(선)": "더피싱/팀만수호_Bot.py",
+        "팀만수호(API)": "api/팀만수호_API.py",
         "팀만수호2(선)": "더피싱/팀만수호2_Bot.py", 
         "팀에프원호(선)": "선상24/팀에프원호_Bot.py", 
         "팀에프투호(선)": "선상24/팀에프투호_Bot.py",
@@ -80,12 +83,14 @@ PORTS = {
         "넘버원호(선)": "선상24/넘버원호_Bot.py", 
         "뉴항구호(선)": "선상24/뉴항구호_Bot.py", 
         "만석호(선)": "더피싱/만석호_Bot.py",
+
         "만석호2(선)": "더피싱/만석호2_Bot.py", 
         "승주호(선)": "더피싱/승주호_Bot.py", 
         "으리호(선)": "더피싱/으리호_Bot.py",
         "천마호(선)": "선상24/천마호_Bot.py", 
         "헌터호(선)": "더피싱/헌터호_Bot.py", 
-        "헤르메스호(선)": "더피싱/헤르메스호_Bot.py"
+        "헤르메스호(선)": "더피싱/헤르메스호_Bot.py",
+        "헤르메스호(API)": "api/헤르메스호_API.py"
     },
     "대천항": {  # 7개
         "기가호": "선상24/기가호_Bot.py", 
@@ -94,6 +99,7 @@ PORTS = {
         "아이언호": "선상24/아이언호_Bot.py",
         "야야호": "더피싱/야야호_Bot.py", 
         "예린호(선)": "더피싱/예린호_Bot.py",
+
         "하이피싱호": "더피싱/하이피싱호_Bot.py",
         "팀루피호": "더피싱/팀루피호_Bot.py"
     },
@@ -106,12 +112,14 @@ PORTS = {
     "무창포항": {  # 3개
         "가가호": "선상24/가가호_Bot.py", 
         "깜보호": "더피싱/깜보호_Bot.py", 
-        "헤라호": "더피싱/헤라호_Bot.py"
+        "헤라호": "더피싱/헤라호_Bot.py",
+        "페가수스호(API)": "api/페가수스_API.py"
     },
     "영목항": {  # 4개
         "뉴청남호": "더피싱/뉴청남호_Bot.py", 
         "❌ 청광호": "더피싱/청광호_Bot.py", 
         "청남호": "더피싱/청남호_Bot.py",
+
         "청남호2": "더피싱/청남호2_Bot.py"
     },
     "인천": {  # 3개
@@ -126,6 +134,7 @@ PORTS = {
     "남당항": {  # 3개
         "은가비호(선)": "선상24/은가비호_Bot.py",
         "장현호": "더피싱/장현호_Bot.py",
+        "장현호(API)": "api/장현호_API.py",
         "장현호2": "더피싱/장현호2_Bot.py"
     },
     "대야도": {  # 2개
@@ -257,6 +266,10 @@ class FishingLauncher:
         self.cb_sec.insert(0, "00.0")
         self.cb_sec.pack(side="left")
         ttk.Label(frame_all, text="초").pack(side="left")
+        
+        # 조기오픈 감시 체크박스 (5분전부터 10초마다 페이지 오픈 여부 확인)
+        self.var_early_monitor = tk.BooleanVar(value=False)
+        ttk.Checkbutton(frame_all, text="🔍 조기오픈감시", variable=self.var_early_monitor).pack(side="left", padx=(10, 0))
         
         # Add/Remove/Copy buttons (Moved next to Execution Time)
         ttk.Button(frame_all, text="➕ 추가", width=8, command=self.add_slot).pack(side="left", padx=(10, 2))
@@ -596,6 +609,7 @@ class FishingLauncher:
                     
                     self.var_test_mode.set(data.get('test_mode', False))
                     self.var_sim_mode.set(data.get('simulation_mode', False))
+                    self.var_early_monitor.set(data.get('early_monitor', False))
                     
                     multi_data = data.get('multi_instance', [])
                     
@@ -697,7 +711,8 @@ class FishingLauncher:
             "target_time": t_time,
             "multi_instance": multi_instance_data,
             "test_mode": self.var_test_mode.get(),
-            "simulation_mode": self.var_sim_mode.get()
+            "simulation_mode": self.var_sim_mode.get(),
+            "early_monitor": self.var_early_monitor.get()
         }
         
         if not os.path.exists(CONFIG_DIR):
@@ -826,6 +841,7 @@ class FishingLauncher:
             temp_data['window_y'] = win_y
             temp_data['window_width'] = win_width
             temp_data['window_height'] = win_height
+            temp_data['early_monitor'] = self.var_early_monitor.get()
             
             temp_config_name = f"temp_config_{provider_clean}_{i}.json"
             temp_config_path = os.path.join(CONFIG_DIR, temp_config_name)

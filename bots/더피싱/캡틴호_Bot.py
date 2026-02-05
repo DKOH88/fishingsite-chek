@@ -16,7 +16,7 @@ os.environ['https_proxy'] = ''
 os.environ['NO_PROXY'] = '*'
 
 
-class ManseokBot(BaseFishingBot):
+class CaptainBot(BaseFishingBot):
     def __init__(self, config):
         super().__init__(config)
         self.success_event = threading.Event()
@@ -37,36 +37,31 @@ class ManseokBot(BaseFishingBot):
                         self.success_event.set()
                         return
                     else:
-                        # "예약하시겠습니까?" etc.
                         alert.accept()
                 except: pass
 
-                # 1. Check Success Indicators
-                if "step3.php" in driver.current_url:
+                # 1. Success Checks
+                if "step2.php" in driver.current_url:
                     self.log(f"🎉 [브라우저{browser_id}] 예약 성공! (URL)")
                     self.success_event.set()
                     return
-                if "신청이 완료되었습니다" in driver.page_source:
+                if "예약 신청이 완료되었습니다" in driver.page_source:
                     self.log(f"🎉 [브라우저{browser_id}] 예약 성공! (텍스트)")
                     self.success_event.set()
                     return
-                tabs = driver.find_elements(By.CSS_SELECTOR, ".top_tab_menu li, .top_tab_menu2 li")
-                if len(tabs) >= 3 and "on" in (tabs[2].get_attribute("class") or ""):
-                    self.log(f"🎉 [브라우저{browser_id}] 예약 성공! (탭)")
+                tabs = driver.find_elements(By.CSS_SELECTOR, ".top_tab_menu2 li")
+                if len(tabs) >= 2 and "on" in (tabs[1].get_attribute("class") or ""):
+                    self.log(f"🎉 [브라우저{browser_id}] 예약 성공! (STEP 02)")
                     self.success_event.set()
                     return
 
-                # 2. Rescue Logic: Click Step 2 Submit if visible
-                if "step2.php" in driver.current_url:
-                    try:
-                         # Try finding button without wait (fast check)
-                         btn = driver.find_element(By.ID, "submit")
-                         driver.execute_script("arguments[0].click();", btn)
-                         # self.log(f"🚑 [브라우저{browser_id}] 백그라운드에서 예약 버튼 클릭 시도!")
-                    except: pass
-
+                 # 2. Rescue Logic: Click Step 1 Submit if still there
+                try:
+                     btn = driver.find_element(By.ID, "submit")
+                     driver.execute_script("arguments[0].click();", btn)
+                except: pass
             except: pass
-            time.sleep(0.1) # Check every 0.1s to save CPU
+            time.sleep(0.1)
         self.log(f"🛑 [브라우저{browser_id}] 모니터링 중지")
 
     def run(self):
@@ -83,13 +78,13 @@ class ManseokBot(BaseFishingBot):
         user_depositor = self.config.get('user_depositor', '')
         user_phone = self.config.get('user_phone', '')
         
-        # 2. Build URL
-        base_url = "http://www.mscufishing.com/_core/module/reservation_boat_v5.2_seat1/popup.step1.php"
-        url = f"{base_url}?date={target_date}&PA_N_UID=3570"
+        # 2. Build URL (캡틴호)
+        base_url = "http://www.captainfishing.net/_core/module/reservation_boat_v5.2_seat1/popu2.step1.php"
+        url = f"{base_url}?date={target_date}&PA_N_UID=2771"
         
         # 2.5 Pre-load / Warm-up
         self.log(f"🌍 페이지 사전 로드 중: {url}")
-        self.log("##########🔎 만석호 예약로직 시작!##########")
+        self.log("##########🔎 캡틴호 예약로직 시작!##########")
         try:
              self.driver.get(url)
              self.log("✅ 사전 로드 완료. 오픈 시간을 기다립니다...")
@@ -108,10 +103,6 @@ class ManseokBot(BaseFishingBot):
         
         # [NEW] Infinite Loop Wrapper
         while True:
-            if self.success_event.is_set():
-                self.log("✅ 예약 완료! (백그라운드 브라우저에서 성공)")
-                return
-            
             max_retries = 5000 
             retry_interval = 0.2 
             step1_success = False
@@ -123,12 +114,12 @@ class ManseokBot(BaseFishingBot):
                     page_source = self.driver.page_source
                     current_url = self.driver.current_url
 
-                    # ERR_TOO_MANY_REDIRECTS 리다이렉트 에러 감지
+                    # ERR_TOO_MANY_REDIRECTS 또는 waitingrequest 리다이렉트 에러 감지
                     if "ERR_TOO_MANY_REDIRECTS" in page_source or "리디렉션한 횟수가 너무 많습니다" in page_source or "waitingrequest" in current_url:
                         self.log(f"⚠️ 리다이렉트 에러 감지! 고속 복구 시도 (쿠키삭제 후 재접속)... ({attempt+1}/{max_retries})")
                         try:
                             self.driver.delete_all_cookies()
-                            time.sleep(0.1) # 짧은 대기
+                            time.sleep(0.1) 
                             self.driver.get(url)
                         except Exception as e:
                             self.log(f"⚠️ 고속 복구 실패 ({e}), 브라우저 재시작...")
@@ -298,9 +289,9 @@ class ManseokBot(BaseFishingBot):
             except Exception as e:
                 self.log(f"⚠️ 남은 좌석 수 확인 실패, 설정값 사용: {e}")
 
-            # Step 1.25: Seat Selection
+            # Step 1.25: Seat Selection (캡틴호 - 우선순위 좌석 필수)
             step_start = time.time()
-            seat_priority = ['1', '15', '2', '9', '8', '10', '7', '14', '3', '11', '6', '13', '4', '12', '5']
+            seat_priority = ['9', '8', '20', '19']  # 이 4자리만 선택, 없으면 봇 중지
             selected_seats = 0
             selected_seats_list = []  
             
@@ -320,7 +311,8 @@ class ManseokBot(BaseFishingBot):
                         pass 
                         
                 if seat_class:
-                    available_seats = self.driver.find_elements(By.XPATH, f"//span[@class='{seat_class}']")
+                    # contains()로 다중 클래스 좌석도 감지 (예: num_smoke_view res_num_view)
+                    available_seats = self.driver.find_elements(By.XPATH, f"//span[contains(@class, '{seat_class}')]") 
                     available_count = len(available_seats)
                     self.log(f"📊 가용 좌석 수: {available_count}석, 설정 인원: {configured_count}명")
                     
@@ -332,7 +324,8 @@ class ManseokBot(BaseFishingBot):
                         if selected_seats >= target_count:
                             break
                         try:
-                            seat_spans = self.driver.find_elements(By.XPATH, f"//span[@class='{seat_class}' and text()='{seat_num}']")
+                            # contains()로 다중 클래스 좌석도 감지
+                            seat_spans = self.driver.find_elements(By.XPATH, f"//span[contains(@class, '{seat_class}') and text()='{seat_num}']") 
                             for seat_span in seat_spans:
                                 if seat_span.is_displayed():
                                     self.log(f"✨ 우선순위 좌석 {seat_num}번 발견! 선택 시도 중... ({selected_seats+1}/{target_count})")
@@ -350,30 +343,21 @@ class ManseokBot(BaseFishingBot):
                         except:
                             continue
                     
-                    if selected_seats < target_count:
-                        self.log(f"⚠️ 우선순위 좌석 부족. 남은 좌석 중 무작위 선택 ({selected_seats}/{target_count})...")
-                        try:
-                            all_seats = self.driver.find_elements(By.CLASS_NAME, seat_class)
-                            for seat_span in all_seats:
-                                if selected_seats >= target_count:
-                                    break
-                                try:
-                                    seat_text = seat_span.text.strip()
-                                    if seat_span.is_displayed() and seat_text not in [s for s in seat_priority]:
-                                        self.log(f"🎲 무작위 좌석 {seat_text}번 선택 중... ({selected_seats+1}/{target_count})")
-                                        self.driver.execute_script("arguments[0].click();", seat_span)
-                                        selected_seats += 1
-                                        selected_seats_list.append(seat_text)
-                                except:
-                                    continue
-                        except Exception as ex:
-                            self.log(f"⚠️ 무작위 좌석 선택 오류: {ex}")
+                    # 캡틴호: 우선순위 좌석(9,8,20,19) 중 하나도 없으면 봇 종료, 브라우저는 대기
+                    if selected_seats == 0:
+                        self.log("🛑 [캡틴호] 우선순위 좌석(9,8,20,19) 모두 예약됨!")
+                        self.log("❌ 선택 가능한 좌석이 없어 봇 로직을 종료합니다.")
+                        self.log("🌐 브라우저는 열린 상태로 대기합니다...")
+                        self.log("✅ 예약 봇 실행 시퀀스가 완료되었습니다.")
+                        # 브라우저 열어둔 채 무한 대기 (수동 확인용)
+                        while True:
+                            time.sleep(60)  # 1분마다 체크 (CPU 부하 방지)
                     
                     if selected_seats >= target_count:
                         self.log(f"✅ 좌석 선택 완료! 총 {selected_seats}석 선택됨. (선택순서: {' → '.join(selected_seats_list)}) (소요시간: {time.time()-step_start:.2f}초)")
                         self.log(f"📋 좌석 우선순위: {seat_priority}")
                     else:
-                        self.log(f"⚠️ 좌석 선택 부족: {selected_seats}/{target_count}석만 선택됨.")
+                        self.log(f"⚠️ 좌석 선택 부족: {selected_seats}/{target_count}석만 선택됨 (우선순위 좌석만 사용).")
                         
             except Exception as e:
                 self.log(f"⚠️ 좌석 선택 오류 (건너뜀): {e}")
@@ -450,21 +434,22 @@ class ManseokBot(BaseFishingBot):
                     self.log(f"✅ '전체 동의' 체크박스 클릭 완료. (소요시간: {time.time()-step_start:.2f}초)")
                 except: pass
 
-                # Step 3: Submit Logic (3-Step Process)
-                self.log("🚀 [STEP 1] '예약 신청하기' 버튼 클릭 시도...")
+                # Step 3: Submit Logic
+                self.log("🚀 '예약 신청하기' 버튼 클릭 시도...")
                 max_submit_retries = 2
                 for submit_attempt in range(max_submit_retries):
                     step_start = time.time()
-                    self.log(f"🚀 [STEP 1] 제출 시도 ({submit_attempt + 1}/{max_submit_retries})...")
+                    self.log(f"🚀 제출 시도 ({submit_attempt + 1}/{max_submit_retries})...")
                     try:
                         submit_btn = self.driver.find_element(By.ID, "submit")
                         self.driver.execute_script("arguments[0].click();", submit_btn)
                         
-                        self.log("🔔 [STEP 1] 팝업 알림창 대기 중...")
+                        self.log("🔔 예약 확인창 대기 중...")
                         alert = wait.until(EC.alert_is_present())
                         alert_text = alert.text
-                        self.log(f"🔔 [STEP 1] 알림창 내용: {alert_text} (소요시간: {time.time()-step_start:.2f}초)")
+                        self.log(f"🔔 알림창 확인: {alert_text} (소요시간: {time.time()-step_start:.2f}초)")
                         
+                        # Error -> Hard Restart
                         if "정상적으로 예약해 주십시오" in alert_text:
                             self.log("⚠️ 오류! 처음부터 다시 시작.")
                             try:
@@ -477,47 +462,76 @@ class ManseokBot(BaseFishingBot):
                             should_hard_restart = True
                             break
                         
-                        # Accept Step 1 Alert
-                        if "이미" in alert_text or "불가능" in alert_text:
-                            self.log("⚠️ 좌석 선점 실패! 즉시 재시도...")
+                        if not self.simulation_mode:
                             alert.accept()
-                            self.driver.refresh()
-                            should_hard_restart = True
-                            break
-                        alert.accept()
-                        
-                        # if self.simulation_mode:  <-- Moved down
-                        #     return
                             
-
-                        # Wait for Step 2
-                        self.log("⏳ [STEP 2] 진입 대기 중 (3초 폴링)...")
-                        step2_start_time = time.time()
-                        step2_entered = False
-                        detection_method = ""
-                        
-                        while time.time() - step2_start_time < 3:
-                            try:
-                                # Check URL
-                                if "step2.php" in self.driver.current_url:
-                                    step2_entered = True
-                                    detection_method = "URL (step2.php)"
-                                    self.log("✨ [STEP 2] URL 감지됨 (step2.php)")
-                                    time.sleep(0.02)
-                                    break
+                            self.log("🔔 결과 확인 대기 중 (알림창 or 페이지 변화) - 3초 타임아웃...")
+                            check_start_time = time.time()
+                            success_detected = False
+                            
+                            while time.time() - check_start_time < 3:
+                                # 1. Check Alert (Only for Failure)
+                                try:
+                                    alert = self.driver.switch_to.alert
+                                    alert_text = alert.text
+                                    self.log(f"🔔 알림창 감지: {alert_text}")
                                     
-                                # Check Class
-                                step2_items = self.driver.find_elements(By.CSS_SELECTOR, ".top_tab_menu2 li") # Manseok uses .top_tab_menu2
-                                if len(step2_items) >= 2 and "on" in step2_items[1].get_attribute("class"): 
-                                    step2_entered = True
-                                    detection_method = "탭 활성화 (.top_tab_menu2)"
-                                    self.log("✨ [STEP 2] 탭 활성화 감지됨")
-                                    break
-                            except: pass
-                            time.sleep(0.02)
+                                    if "정상적으로 예약해 주십시오" in alert_text:
+                                        alert.accept()
+                                        self.driver.refresh()
+                                        should_hard_restart = True
+                                        break
+                                    elif "이미" in alert_text or "불가능" in alert_text:
+                                        self.log("⚠️ 좌석 선점 실패! 즉시 재시도...")
+                                        alert.accept()
+                                        self.driver.refresh()
+                                        should_hard_restart = True
+                                        break
+                                    else:
+                                        # 그 외 알림창은 일단 닫고 계속 진행
+                                        alert.accept()
+                                except:
+                                    pass # No alert present
+
+                                # 2. Check Page Detection (Success Indicators)
+                                try:
+                                    # Indicator A: URL Check
+                                    if "step2.php" in self.driver.current_url:
+                                        success_detected = True
+                                        self.log("🎉 예약 성공! (URL 변경 확인: step2.php)")
+                                        break
+                                    
+                                    # Indicator B: Success Text Check
+                                    if "예약 신청이 완료되었습니다" in self.driver.page_source:
+                                        success_detected = True
+                                        self.log("🎉 예약 성공! (텍스트 확인)")
+                                        break
+
+                                    # Indicator C: Class Check
+                                    step2_items = self.driver.find_elements(By.CSS_SELECTOR, ".top_tab_menu2 li")
+                                    if len(step2_items) >= 2 and "on" in step2_items[1].get_attribute("class"):
+                                        success_detected = True
+                                        self.log("🎉 예약 성공! (STEP 02 활성화 확인)")
+                                        break
+                                except:
+                                    pass
+                                
+                                time.sleep(0.01) # Fast polling
+
+                            if should_hard_restart:
+                                break
+                                
+                            if success_detected:
+                                try:
+                                    elapsed_time = time.time() - process_start_time
+                                    self.log(f"⏱️ 총 소요 시간: {elapsed_time:.2f}초")
+                                except: pass
+                                self.log("✅ 예약 봇 실행 시퀀스가 모두 완료되었습니다.")
+                                return
+
+                            self.log("⚠️ 3초 대기 후에도 결과 미확인. 백그라운드 전환 + 새 브라우저...")
                             
-                        if not step2_entered:
-                            self.log("⚠️ [STEP 2] 진입 실패 (3초 타임아웃). 백그라운드 모니터링 + 새 브라우저...")
+                            # Move to background
                             old_driver = self.driver
                             browser_id = len(self.browsers) + 1
                             self.browsers.append(old_driver)
@@ -525,12 +539,12 @@ class ManseokBot(BaseFishingBot):
                             t.daemon = True
                             t.start()
                             self.browser_threads.append(t)
+                            
+                            # New Driver
                             self.setup_driver()
                             wait = WebDriverWait(self.driver, 30)
-                            break # Exit to outer while True loop with new browser
-                            
-                        if self.simulation_mode:
-                            self.log(f"✨ [ Simulation Mode ] STEP 2 진입 확인 ({detection_method})")
+                            break # Exit submit loop, trigger restart
+                        else:
                             self.log("🛑 시뮬레이션 종료")
                             try:
                                 elapsed_time = time.time() - process_start_time
@@ -538,84 +552,6 @@ class ManseokBot(BaseFishingBot):
                             except: pass
                             self.log("✅ 예약 봇 실행 시퀀스가 모두 완료되었습니다.")
                             return
-
-
-
-                        # Execute Step 2 Submit
-                        self.log("🚀 [STEP 2] '예약 신청하기' 버튼 클릭 대기 및 시도...")
-                        try:
-                            # 2025-02-03: 버튼 대기 시간 2초로 단축 (빠른 포기/새창 띄우기 전략)
-                            submit_btn_step2 = WebDriverWait(self.driver, 2).until(
-                                EC.element_to_be_clickable((By.ID, "submit"))
-                            )
-                            self.driver.execute_script("arguments[0].click();", submit_btn_step2)
-                            self.log("✨ [STEP 2] 버튼 클릭 성공!")
-                        except Exception as e2:
-                             self.log(f"⚠️ [STEP 2] 버튼 클릭 실패 (2초 타임아웃): {e2}")
-                             self.log("🔄 현재 브라우저는 백그라운드 모니터링(구조대)으로 전환하고, 새 브라우저를 띄웁니다.")
-                             
-                             # 1. Move current driver to background monitoring
-                             old_driver = self.driver
-                             browser_id = len(self.browsers) + 1
-                             self.browsers.append(old_driver)
-                             
-                             t = threading.Thread(target=self.monitor_browser_for_success, args=(old_driver, browser_id))
-                             t.daemon = True
-                             t.start()
-                             self.browser_threads.append(t)
-                             
-                             # 2. Launch new driver & Restart loop
-                             self.setup_driver()
-                             wait = WebDriverWait(self.driver, 30)
-                             break # Break to restart outer 'while True' loop with new driver
-                             
-                        # Wait for Step 3 (Success)
-                        self.log("⏳ [STEP 3] 최종 완료 확인 대기 중 (5초 폴링)...")
-                        step3_start_time = time.time()
-                        success_detected = False
-                        
-                        while time.time() - step3_start_time < 10:
-                            try:
-                                # Indicator A: URL Check (step3.php)
-                                if "step3.php" in self.driver.current_url:
-                                    success_detected = True
-                                    self.log("🎉 [STEP 3] 예약 성공! (URL: step3.php)")
-                                    break
-                                    
-                                # Indicator B: Success Text
-                                if "신청이 완료되었습니다" in self.driver.page_source:
-                                    success_detected = True
-                                    self.log("🎉 [STEP 3] 예약 성공! (텍스트 확인)")
-                                    break
-                                    
-                                # Indicator C: Step 3 Tab
-                                step3_items = self.driver.find_elements(By.CSS_SELECTOR, ".top_tab_menu2 li")
-                                if len(step3_items) >= 3 and "on" in step3_items[2].get_attribute("class"):
-                                    success_detected = True
-                                    self.log("🎉 [STEP 3] 예약 성공! (탭 활성화 확인)")
-                                    break
-                            except: pass
-                            time.sleep(0.1)
-                            
-                        if success_detected:
-                            try:
-                                elapsed_time = time.time() - process_start_time
-                                self.log(f"⏱️ 총 소요 시간: {elapsed_time:.2f}초")
-                            except: pass
-                            self.log("✅ 예약 봇 실행 시퀀스가 모두 완료되었습니다.")
-                            return
-
-                        self.log("⚠️ [STEP 3] 최종 완료 미확인. 백그라운드 모니터링 + 새 브라우저...")
-                        old_driver = self.driver
-                        browser_id = len(self.browsers) + 1
-                        self.browsers.append(old_driver)
-                        t = threading.Thread(target=self.monitor_browser_for_success, args=(old_driver, browser_id))
-                        t.daemon = True
-                        t.start()
-                        self.browser_threads.append(t)
-                        self.setup_driver()
-                        wait = WebDriverWait(self.driver, 30)
-                        break
 
                     except Exception as e:
                         self.log(f"⚠️ Submit Error: {e}")
@@ -629,13 +565,13 @@ class ManseokBot(BaseFishingBot):
                 continue
             
             self.log("🔄 루프 재시작...")
-            time.sleep(0.1)
+            time.sleep(0.05)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", required=True)
     args = parser.parse_args()
     with open(args.config, 'r', encoding='utf-8') as f: config = json.load(f)
-    bot = ManseokBot(config)
+    bot = CaptainBot(config)
     try: bot.run()
     except KeyboardInterrupt: bot.stop()
