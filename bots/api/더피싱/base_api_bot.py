@@ -1042,7 +1042,7 @@ class TheFishingAPIBot:
         """로그 파일 초기화 (Selenium 봇과 동일한 양식)"""
         global _log_file_path
         try:
-            log_dir = os.path.join(os.path.dirname(__file__), '..', '..', '..', 'Log')
+            log_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', 'Log'))
             if not os.path.exists(log_dir):
                 os.makedirs(log_dir)
 
@@ -1057,7 +1057,10 @@ class TheFishingAPIBot:
             else:
                 t_date_fmt = t_date
 
-            log_file = os.path.join(log_dir, f"{time_str}_더피싱_{p_provider}_{t_date_fmt}_.txt")
+            # 테스트/시뮬레이션 모드일 때 파일명에 [TestMode] 접두사
+            mode_prefix = "[TestMode]_" if (self.test_mode_skip_wait or self.dry_run) else ""
+
+            log_file = os.path.join(log_dir, f"{mode_prefix}{time_str}_더피싱_{p_provider}_{t_date_fmt}_.txt")
             _log_file_path = log_file
 
             pretty_timestamp = now.strftime("%Y-%m-%d_%H:%M:%S")

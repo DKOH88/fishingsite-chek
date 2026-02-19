@@ -2,10 +2,10 @@
     "target_time": "19:59:59",
     "multi_instance": [
         {
-            "enable": true,
+            "enable": false,
             "port": "오천항",
             "provider": "라라호test호(API)",
-            "date": "20261017",
+            "date": "20261117",
             "person_count": "2",
             "user_name": "김현근",
             "user_depositor": "",
@@ -15,14 +15,14 @@
             "enable": true,
             "port": "오천항",
             "provider": "라라호(API)",
-            "date": "20261017",
+            "date": "20261019",
             "person_count": "1",
             "user_name": "오동균",
             "user_depositor": "",
             "user_phone": "010-5961-6149"
         },
         {
-            "enable": true,
+            "enable": false,
             "port": "오천항",
             "provider": "라라호(API)",
             "date": "20260905",
@@ -42,8 +42,8 @@
             "user_phone": "010-2345-6789"
         }
     ],
-    "test_mode": false,
-    "simulation_mode": false,
-    "early_monitor": true,
+    "test_mode": true,
+    "simulation_mode": true,
+    "early_monitor": false,
     "bot_mode": "API"
 }
