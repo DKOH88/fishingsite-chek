@@ -1,0 +1,7 @@
+해양수산부 국립해양조사원_조류예보(시계열) : https://apis.data.go.kr/1192136/crntFcstTime
+해양수산부 국립해양조사원_조석예보(시계열) : https://apis.data.go.kr/1192136/tideFcstTime
+해양수산부 국립해양조사원_편차계산표(조석성과) : https://apis.data.go.kr/1192136/deviationCal
+해양수산부 국립해양조사원_조위관측소 실측·예측 조위 조회 : https://apis.data.go.kr/1192136/surveyTideLevel
+해양수산부 국립해양조사원_TideBED 예측 조위(1분) : https://apis.data.go.kr/1192136/tidebed
+해양수산부 국립해양조사원_조석예보(고, 저조) : https://apis.data.go.kr/1192136/tideFcstHghLw
+해양수산부 국립해양조사원_조류예보 최강창낙조 및 전류 End Point : https://apis.data.go.kr/1192136/crntFcstFldEbb

@@ -4,8 +4,10 @@
 - 선택한 날짜(9~11월)의 예약 가능 여부를 8~10분마다 체크
 - 예약하기 버튼이 활성화되면 텔레그램 알림 전송
 """
+import ttkbootstrap as ttk
+from ttkbootstrap.constants import *
+from tkinter import messagebox
 import tkinter as tk
-from tkinter import ttk, scrolledtext, messagebox
 import threading
 import json
 import os
@@ -1302,7 +1304,7 @@ class FishingBoatMonitorApp:
         main_frame.pack(fill=tk.BOTH, expand=True)
         
         # 1. 선박 관리
-        boat_frame = ttk.LabelFrame(main_frame, text="🚢 선박 관리", padding="5")
+        boat_frame = ttk.Labelframe(main_frame, text="🚢 선박 관리", padding="5", bootstyle="info")
         boat_frame.pack(fill=tk.X, pady=5)
         
         # 플랫폼 선택 버튼
@@ -1386,7 +1388,7 @@ class FishingBoatMonitorApp:
         self.refresh_boat_grid()
         
         # 3. 모니터링 대상 설정
-        target_frame = ttk.LabelFrame(main_frame, text="🎯 모니터링 대상", padding="5")
+        target_frame = ttk.Labelframe(main_frame, text="🎯 모니터링 대상", padding="5", bootstyle="primary")
         target_frame.pack(fill=tk.X, pady=5)
         
         date_row = ttk.Frame(target_frame)
@@ -1443,7 +1445,7 @@ class FishingBoatMonitorApp:
         self.lbl_days_summary.pack(anchor='w', padx=5)
         
         # 3.5 자동예약 정보 (빨간색 선사용)
-        reserve_frame = ttk.LabelFrame(main_frame, text="🔴 자동예약 정보", padding="5")
+        reserve_frame = ttk.Labelframe(main_frame, text="🔴 자동예약 정보", padding="5", bootstyle="danger")
         reserve_frame.pack(fill=tk.X, pady=5)
         
         reserve_row = ttk.Frame(reserve_frame)
@@ -1466,7 +1468,7 @@ class FishingBoatMonitorApp:
         ttk.Label(reserve_row, text="명").pack(side=tk.LEFT)
         
         # 4. 체크 간격 설정
-        interval_frame = ttk.LabelFrame(main_frame, text="⏰ 체크 간격", padding="5")
+        interval_frame = ttk.Labelframe(main_frame, text="⏰ 체크 간격", padding="5", bootstyle="warning")
         interval_frame.pack(fill=tk.X, pady=5)
         
         interval_row = ttk.Frame(interval_frame)
@@ -1489,38 +1491,39 @@ class FishingBoatMonitorApp:
         checkbox_row.pack(fill=tk.X, pady=2)
         
         self.var_headless = tk.BooleanVar(value=self.config.get('headless_mode', True))
-        ttk.Checkbutton(checkbox_row, text="👻 헤드리스", 
-                        variable=self.var_headless).pack(side=tk.LEFT, padx=5)
-        
+        ttk.Checkbutton(checkbox_row, text="👻 헤드리스",
+                        variable=self.var_headless, bootstyle="info-round-toggle").pack(side=tk.LEFT, padx=5)
+
         self.var_test_mode = tk.BooleanVar(value=self.config.get('test_mode', True))
-        ttk.Checkbutton(checkbox_row, text="🧪 Test모드", 
-                        variable=self.var_test_mode).pack(side=tk.LEFT, padx=5)
-        
+        ttk.Checkbutton(checkbox_row, text="🧪 Test모드",
+                        variable=self.var_test_mode, bootstyle="warning-round-toggle").pack(side=tk.LEFT, padx=5)
+
         self.var_summary_alert = tk.BooleanVar(value=self.config.get('summary_alert', True))
-        ttk.Checkbutton(checkbox_row, text="📊 종합알람", 
-                        variable=self.var_summary_alert).pack(side=tk.LEFT, padx=5)
+        ttk.Checkbutton(checkbox_row, text="📊 종합알람",
+                        variable=self.var_summary_alert, bootstyle="success-round-toggle").pack(side=tk.LEFT, padx=5)
         
         # 5. 버튼
         btn_frame = ttk.Frame(main_frame)
         btn_frame.pack(fill=tk.X, pady=10)
         
-        ttk.Button(btn_frame, text="💾 설정 저장", command=self.save_config, width=20).pack(side=tk.LEFT, padx=5)
-        
-        self.btn_start = ttk.Button(btn_frame, text="🚀 시작", command=self.start_monitor, width=15)
+        ttk.Button(btn_frame, text="💾 설정 저장", command=self.save_config, width=20, bootstyle="secondary").pack(side=tk.LEFT, padx=5)
+
+        self.btn_start = ttk.Button(btn_frame, text="🚀 시작", command=self.start_monitor, width=15, bootstyle="success")
         self.btn_start.pack(side=tk.LEFT, padx=5)
-        
-        self.btn_stop = ttk.Button(btn_frame, text="🛑 중지", command=self.stop_monitor, state="disabled", width=15)
+
+        self.btn_stop = ttk.Button(btn_frame, text="🛑 중지", command=self.stop_monitor, state="disabled", width=15, bootstyle="danger")
         self.btn_stop.pack(side=tk.LEFT, padx=5)
-        
+
         # 숨김 버튼 (트레이로)
         if TRAY_AVAILABLE:
-            ttk.Button(btn_frame, text="👁️ 숨김", command=self.hide_to_tray, width=15).pack(side=tk.LEFT, padx=5)
+            ttk.Button(btn_frame, text="👁️ 숨김", command=self.hide_to_tray, width=15, bootstyle="info-outline").pack(side=tk.LEFT, padx=5)
         
         # 6. 로그창
-        log_frame = ttk.LabelFrame(main_frame, text="📝 모니터링 로그", padding="5")
+        log_frame = ttk.Labelframe(main_frame, text="📝 모니터링 로그", padding="5", bootstyle="secondary")
         log_frame.pack(fill=tk.BOTH, expand=True)
-        
-        self.log_area = scrolledtext.ScrolledText(log_frame, height=25, state='disabled', font=("Consolas", 9))
+
+        self.log_area = tk.Text(log_frame, height=25, state='disabled', font=("Consolas", 9),
+                                bg="#1e1e1e", fg="#d4d4d4", insertbackground="#d4d4d4")
         self.log_area.pack(fill=tk.BOTH, expand=True)
         
         self.log_msg("=" * 50)
@@ -1994,6 +1997,6 @@ class FishingBoatMonitorApp:
 # 🚀 실행
 # ============================================
 if __name__ == "__main__":
-    root = tk.Tk()
+    root = ttk.Window(themename="darkly")
     app = FishingBoatMonitorApp(root)
     root.mainloop()

@@ -1,0 +1,40 @@
+{
+    "user_name": "홍길동",
+    "user_depositor": "홍길동",
+    "user_phone": "010-0000-0000",
+    "target_date": "20261119",
+    "multi_instance": [
+        {
+            "enable": true,
+            "port": "오천항",
+            "provider": "금땡이호",
+            "date": "20261119",
+            "person_count": "1"
+        },
+        {
+            "enable": true,
+            "port": "오천항",
+            "provider": "금땡이호",
+            "date": "20261119",
+            "person_count": "1"
+        },
+        {
+            "enable": true,
+            "port": "오천항",
+            "provider": "금땡이호",
+            "date": "20261119",
+            "person_count": "1"
+        },
+        {
+            "enable": true,
+            "port": "오천항",
+            "provider": "금땡이호",
+            "date": "20261119",
+            "person_count": "1"
+        }
+    ],
+    "target_time": "09:00:00",
+    "person_count": "1",
+    "test_mode": true,
+    "simulation_mode": true
+}

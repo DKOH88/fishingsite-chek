@@ -1,48 +1,49 @@
 {
-    "target_time": "13:00:00",
+    "target_time": "19:59:59",
     "multi_instance": [
         {
             "enable": true,
             "port": "오천항",
-            "provider": "캡틴호",
-            "date": "20260920",
+            "provider": "라라호test호(API)",
+            "date": "20261017",
+            "person_count": "2",
+            "user_name": "김현근",
+            "user_depositor": "",
+            "user_phone": "010-9946-9282"
+        },
+        {
+            "enable": true,
+            "port": "오천항",
+            "provider": "라라호(API)",
+            "date": "20261017",
+            "person_count": "1",
+            "user_name": "오동균",
+            "user_depositor": "",
+            "user_phone": "010-5961-6149"
+        },
+        {
+            "enable": true,
+            "port": "오천항",
+            "provider": "라라호(API)",
+            "date": "20260905",
             "person_count": "1",
             "user_name": "오동균",
             "user_depositor": "",
             "user_phone": "010-2345-6149"
         },
         {
-            "enable": true,
-            "port": "오천항",
-            "provider": "캡틴호",
-            "date": "20260923",
-            "person_count": "1",
-            "user_name": "이순자",
-            "user_depositor": "",
-            "user_phone": "010-5961-6149"
-        },
-        {
             "enable": false,
-            "port": "영흥도",
-            "provider": "팀만수호(선)",
-            "date": "20261119",
+            "port": "대천항",
+            "provider": "승하호(API)",
+            "date": "20501125",
             "person_count": "1",
-            "user_name": "김재현",
+            "user_name": "ㅇㅇ",
             "user_depositor": "",
-            "user_phone": "010-5961-2597"
-        },
-        {
-            "enable": false,
-            "port": "삼길포항",
-            "provider": "만석호(선)",
-            "date": "20500901",
-            "person_count": "1",
-            "user_name": "김재현",
-            "user_depositor": "",
-            "user_phone": "010-0105-9612"
+            "user_phone": "010-2345-6789"
         }
     ],
     "test_mode": false,
     "simulation_mode": false,
-    "early_monitor": true
+    "early_monitor": true,
+    "bot_mode": "API"
 }

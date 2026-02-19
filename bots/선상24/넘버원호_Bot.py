@@ -1,176 +1,331 @@
+# -*- coding: utf-8 -*-
+"""
+넘버원호 예약 봇 (선상24)
+패턴: 맵핑 있음 + 자리선택 있음
+"""
+
 import sys
 import json
-import time
 import argparse
-import threading
-from datetime import datetime
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from base_bot import BaseFishingBot
+from base_bot import SunSang24BaseBot
 
-class NumberOneBot(BaseFishingBot):
-    def __init__(self, config):
-        super().__init__(config)
-        self.success_event = threading.Event()
-        self.browser_threads = []
-        self.browsers = []
-        self.max_browsers = 2
 
-    def monitor_browser_for_success(self, driver, browser_id):
-        self.log(f"🔍 [브라우저{browser_id}] 백그라운드 모니터링 시작...")
-        while not self.success_event.is_set():
-            try:
-                if "reservation_detail" in driver.current_url:
-                    self.log(f"🎉 [브라우저{browser_id}] 예약 성공!")
-                    self.success_event.set()
-                    return
-                if any(kw in driver.page_source for kw in ['예약현황', '예약접수 완료!']):
-                    self.log(f"🎉 [브라우저{browser_id}] 예약 성공!")
-                    self.success_event.set()
-                    return
-            except: pass
-            time.sleep(0.1)
+class 넘버원호Bot(SunSang24BaseBot):
+    SUBDOMAIN = "no1"
+    PROVIDER_NAME = "넘버원호"
+    HAS_SEAT_SELECTION = True
+    USE_DIRECT_MAPPING = True
 
-    def run(self):
-        self.setup_driver()
-        target_date_str = self.config.get('target_date', '20260802')
-        target_time = self.config.get('target_time', '09:00:00')
-        test_mode = self.config.get('test_mode', False)
-        self.simulation_mode = self.config.get('simulation_mode', False)
-        user_name = self.config.get('user_name', '')
-        user_depositor = self.config.get('user_depositor', '')
-        user_phone = self.config.get('user_phone', '')
-        person_count = int(self.config.get('person_count', 1))
+    # ID 매핑 (일별: 월, 일)
+    ID_MAPPING = {
+        (2, 10): 1592233,   # 2월 10일
+        (2, 11): 1592234,   # 2월 11일
+        (2, 12): 1592235,   # 2월 12일
+        (2, 13): 1592236,   # 2월 13일
+        (2, 14): 1592237,   # 2월 14일
+        (2, 15): 1592238,   # 2월 15일
+        (2, 16): 1592239,   # 2월 16일
+        (2, 17): 1592240,   # 2월 17일
+        (2, 18): 1592241,   # 2월 18일
+        (2, 19): 1592242,   # 2월 19일
+        (2, 20): 1592243,   # 2월 20일
+        (2, 21): 1592244,   # 2월 21일
+        (2, 22): 1592245,   # 2월 22일
+        (2, 23): 1592246,   # 2월 23일
+        (2, 24): 1592247,   # 2월 24일
+        (2, 25): 1592248,   # 2월 25일
+        (2, 26): 1592249,   # 2월 26일
+        (2, 27): 1592250,   # 2월 27일
+        (2, 28): 1592251,   # 2월 28일
+        (3, 1): 1592252,   # 3월 1일
+        (3, 2): 1592253,   # 3월 2일
+        (3, 3): 1592254,   # 3월 3일
+        (3, 4): 1592255,   # 3월 4일
+        (3, 5): 1592256,   # 3월 5일
+        (3, 6): 1592257,   # 3월 6일
+        (3, 7): 1592258,   # 3월 7일
+        (3, 8): 1592259,   # 3월 8일
+        (3, 9): 1592260,   # 3월 9일
+        (3, 10): 1592261,   # 3월 10일
+        (3, 11): 1592262,   # 3월 11일
+        (3, 12): 1592263,   # 3월 12일
+        (3, 13): 1592264,   # 3월 13일
+        (3, 14): 1592265,   # 3월 14일
+        (3, 15): 1592266,   # 3월 15일
+        (3, 16): 1592267,   # 3월 16일
+        (3, 17): 1592268,   # 3월 17일
+        (3, 18): 1592269,   # 3월 18일
+        (3, 19): 1592270,   # 3월 19일
+        (3, 20): 1592271,   # 3월 20일
+        (3, 21): 1592272,   # 3월 21일
+        (3, 22): 1592273,   # 3월 22일
+        (3, 23): 1592274,   # 3월 23일
+        (3, 24): 1592275,   # 3월 24일
+        (3, 25): 1592276,   # 3월 25일
+        (3, 26): 1592277,   # 3월 26일
+        (3, 27): 1591602,   # 3월 27일
+        (3, 28): 1592278,   # 3월 28일
+        (3, 29): 1592279,   # 3월 29일
+        (3, 30): 1592280,   # 3월 30일
+        (3, 31): 1592281,   # 3월 31일
+        (4, 1): 1636457,   # 4월 1일
+        (4, 2): 1636458,   # 4월 2일
+        (4, 3): 1636459,   # 4월 3일
+        (4, 4): 1636460,   # 4월 4일
+        (4, 5): 1636461,   # 4월 5일
+        (4, 6): 1636462,   # 4월 6일
+        (4, 7): 1636463,   # 4월 7일
+        (4, 8): 1636464,   # 4월 8일
+        (4, 9): 1636465,   # 4월 9일
+        (4, 10): 1636466,   # 4월 10일
+        (4, 11): 1636467,   # 4월 11일
+        (4, 12): 1570112,   # 4월 12일
+        (4, 13): 1636468,   # 4월 13일
+        (4, 14): 1630189,   # 4월 14일
+        (4, 15): 1636469,   # 4월 15일
+        (4, 16): 1636470,   # 4월 16일
+        (4, 17): 1636471,   # 4월 17일
+        (4, 18): 1636472,   # 4월 18일
+        (4, 19): 1636473,   # 4월 19일
+        (4, 20): 1636474,   # 4월 20일
+        (4, 21): 1636475,   # 4월 21일
+        (4, 22): 1636476,   # 4월 22일
+        (4, 23): 1636477,   # 4월 23일
+        (4, 24): 1591603,   # 4월 24일
+        (4, 25): 1636478,   # 4월 25일
+        (4, 26): 1636479,   # 4월 26일
+        (4, 27): 1636480,   # 4월 27일
+        (4, 28): 1629905,   # 4월 28일
+        (4, 29): 1636481,   # 4월 29일
+        (4, 30): 1636482,   # 4월 30일
+        (5, 1): 1636484,   # 5월 1일
+        (5, 2): 1636485,   # 5월 2일
+        (5, 3): 1636486,   # 5월 3일
+        (5, 4): 1636487,   # 5월 4일
+        (5, 5): 1636488,   # 5월 5일
+        (5, 6): 1636489,   # 5월 6일
+        (5, 7): 1636490,   # 5월 7일
+        (5, 8): 1594209,   # 5월 8일
+        (5, 9): 1605546,   # 5월 9일
+        (5, 10): 1636491,   # 5월 10일
+        (5, 11): 1636492,   # 5월 11일
+        (5, 12): 1636493,   # 5월 12일
+        (5, 13): 1629939,   # 5월 13일
+        (5, 14): 1636087,   # 5월 14일
+        (5, 15): 1636494,   # 5월 15일
+        (5, 16): 1625114,   # 5월 16일
+        (5, 17): 1636495,   # 5월 17일
+        (5, 18): 1636496,   # 5월 18일
+        (5, 19): 1636497,   # 5월 19일
+        (5, 20): 1636498,   # 5월 20일
+        (5, 21): 1636499,   # 5월 21일
+        (5, 22): 1636500,   # 5월 22일
+        (5, 23): 1605530,   # 5월 23일
+        (5, 24): 1636501,   # 5월 24일
+        (5, 25): 1636502,   # 5월 25일
+        (5, 26): 1636503,   # 5월 26일
+        (5, 27): 1636504,   # 5월 27일
+        (5, 28): 1630029,   # 5월 28일
+        (5, 29): 1592363,   # 5월 29일
+        (5, 30): 1625108,   # 5월 30일
+        (5, 31): 1632743,   # 5월 31일
+        (6, 1): 1636505,   # 6월 1일
+        (6, 2): 1636506,   # 6월 2일
+        (6, 3): 1636507,   # 6월 3일
+        (6, 4): 1636508,   # 6월 4일
+        (6, 5): 1636509,   # 6월 5일
+        (6, 6): 1636510,   # 6월 6일
+        (6, 7): 1636511,   # 6월 7일
+        (6, 8): 1636512,   # 6월 8일
+        (6, 9): 1636513,   # 6월 9일
+        (6, 10): 1636514,   # 6월 10일
+        (6, 11): 1636515,   # 6월 11일
+        (6, 12): 1630030,   # 6월 12일
+        (6, 13): 1605533,   # 6월 13일
+        (6, 14): 1636516,   # 6월 14일
+        (6, 15): 1636517,   # 6월 15일
+        (6, 16): 1636518,   # 6월 16일
+        (6, 17): 1636519,   # 6월 17일
+        (6, 18): 1636520,   # 6월 18일
+        (6, 19): 1636521,   # 6월 19일
+        (6, 20): 1636522,   # 6월 20일
+        (6, 21): 1636523,   # 6월 21일
+        (6, 22): 1636524,   # 6월 22일
+        (6, 23): 1636525,   # 6월 23일
+        (6, 24): 1636526,   # 6월 24일
+        (6, 25): 1636527,   # 6월 25일
+        (6, 26): 1630031,   # 6월 26일
+        (6, 27): 1605532,   # 6월 27일
+        (6, 28): 1636528,   # 6월 28일
+        (6, 29): 1636529,   # 6월 29일
+        (6, 30): 1636530,   # 6월 30일
+        (7, 1): 1636531,   # 7월 1일
+        (7, 2): 1636532,   # 7월 2일
+        (7, 3): 1636533,   # 7월 3일
+        (7, 4): 1636534,   # 7월 4일
+        (7, 5): 1636535,   # 7월 5일
+        (7, 6): 1636536,   # 7월 6일
+        (7, 7): 1636537,   # 7월 7일
+        (7, 8): 1636538,   # 7월 8일
+        (7, 9): 1636539,   # 7월 9일
+        (7, 10): 1630033,   # 7월 10일
+        (7, 11): 1605534,   # 7월 11일
+        (7, 12): 1636540,   # 7월 12일
+        (7, 13): 1636541,   # 7월 13일
+        (7, 14): 1636542,   # 7월 14일
+        (7, 15): 1636543,   # 7월 15일
+        (7, 16): 1636544,   # 7월 16일
+        (7, 17): 1636545,   # 7월 17일
+        (7, 18): 1636546,   # 7월 18일
+        (7, 19): 1636547,   # 7월 19일
+        (7, 20): 1636548,   # 7월 20일
+        (7, 21): 1636549,   # 7월 21일
+        (7, 22): 1636550,   # 7월 22일
+        (7, 23): 1636551,   # 7월 23일
+        (7, 24): 1630034,   # 7월 24일
+        (7, 25): 1636552,   # 7월 25일
+        (7, 26): 1636553,   # 7월 26일
+        (7, 27): 1630190,   # 7월 27일
+        (7, 28): 1636554,   # 7월 28일
+        (7, 29): 1636555,   # 7월 29일
+        (7, 30): 1636556,   # 7월 30일
+        (7, 31): 1636557,   # 7월 31일
+        (8, 1): 1636558,   # 8월 1일
+        (8, 2): 1636559,   # 8월 2일
+        (8, 3): 1636560,   # 8월 3일
+        (8, 4): 1636561,   # 8월 4일
+        (8, 5): 1636562,   # 8월 5일
+        (8, 6): 1636563,   # 8월 6일
+        (8, 7): 1632139,   # 8월 7일
+        (8, 8): 1636564,   # 8월 8일
+        (8, 9): 1636565,   # 8월 9일
+        (8, 10): 1630035,   # 8월 10일
+        (8, 11): 1636566,   # 8월 11일
+        (8, 12): 1636567,   # 8월 12일
+        (8, 13): 1636568,   # 8월 13일
+        (8, 14): 1636569,   # 8월 14일
+        (8, 15): 1636570,   # 8월 15일
+        (8, 16): 1636571,   # 8월 16일
+        (8, 17): 1636572,   # 8월 17일
+        (8, 18): 1636573,   # 8월 18일
+        (8, 19): 1636574,   # 8월 19일
+        (8, 20): 1636575,   # 8월 20일
+        (8, 21): 1636576,   # 8월 21일
+        (8, 22): 1636577,   # 8월 22일
+        (8, 23): 1636578,   # 8월 23일
+        (8, 24): 1636579,   # 8월 24일
+        (8, 25): 1630191,   # 8월 25일
+        (8, 26): 1636580,   # 8월 26일
+        (8, 27): 1636581,   # 8월 27일
+        (8, 28): 1636582,   # 8월 28일
+        (8, 29): 1636583,   # 8월 29일
+        (8, 30): 1636584,   # 8월 30일
+        (8, 31): 1636585,   # 8월 31일
+        (9, 1): 1546074,   # 9월 1일
+        (9, 2): 1546075,   # 9월 2일
+        (9, 3): 1546076,   # 9월 3일
+        (9, 4): 1546077,   # 9월 4일
+        (9, 5): 1538667,   # 9월 5일
+        (9, 6): 1537846,   # 9월 6일
+        (9, 7): 1546078,   # 9월 7일
+        (9, 8): 1546079,   # 9월 8일
+        (9, 9): 1546080,   # 9월 9일
+        (9, 10): 1546081,   # 9월 10일
+        (9, 11): 1546082,   # 9월 11일
+        (9, 12): 1546083,   # 9월 12일
+        (9, 13): 1546084,   # 9월 13일
+        (9, 14): 1546085,   # 9월 14일
+        (9, 15): 1546086,   # 9월 15일
+        (9, 16): 1546087,   # 9월 16일
+        (9, 17): 1546088,   # 9월 17일
+        (9, 18): 1546089,   # 9월 18일
+        (9, 19): 1546090,   # 9월 19일
+        (9, 20): 1546091,   # 9월 20일
+        (9, 21): 1546092,   # 9월 21일
+        (9, 22): 1546093,   # 9월 22일
+        (9, 23): 1546094,   # 9월 23일
+        (9, 24): 1546095,   # 9월 24일
+        (9, 25): 1546096,   # 9월 25일
+        (9, 26): 1546097,   # 9월 26일
+        (9, 27): 1546098,   # 9월 27일
+        (9, 28): 1546099,   # 9월 28일
+        (9, 29): 1546100,   # 9월 29일
+        (9, 30): 1546101,   # 9월 30일
+        (10, 1): 1546102,   # 10월 1일
+        (10, 2): 1546103,   # 10월 2일
+        (10, 3): 1546104,   # 10월 3일
+        (10, 4): 1546105,   # 10월 4일
+        (10, 5): 1546106,   # 10월 5일
+        (10, 6): 1546107,   # 10월 6일
+        (10, 7): 1546108,   # 10월 7일
+        (10, 8): 1546109,   # 10월 8일
+        (10, 9): 1546110,   # 10월 9일
+        (10, 10): 1546111,   # 10월 10일
+        (10, 11): 1546112,   # 10월 11일
+        (10, 12): 1546113,   # 10월 12일
+        (10, 13): 1546114,   # 10월 13일
+        (10, 14): 1546115,   # 10월 14일
+        (10, 15): 1546116,   # 10월 15일
+        (10, 16): 1546117,   # 10월 16일
+        (10, 17): 1546118,   # 10월 17일
+        (10, 18): 1546119,   # 10월 18일
+        (10, 19): 1546120,   # 10월 19일
+        (10, 20): 1546121,   # 10월 20일
+        (10, 21): 1546122,   # 10월 21일
+        (10, 22): 1546123,   # 10월 22일
+        (10, 23): 1546124,   # 10월 23일
+        (10, 24): 1546125,   # 10월 24일
+        (10, 25): 1546126,   # 10월 25일
+        (10, 26): 1546127,   # 10월 26일
+        (10, 27): 1546128,   # 10월 27일
+        (10, 28): 1546129,   # 10월 28일
+        (10, 29): 1546130,   # 10월 29일
+        (10, 30): 1546131,   # 10월 30일
+        (10, 31): 1546132,   # 10월 31일
+        (11, 1): 1546133,   # 11월 1일
+        (11, 2): 1546134,   # 11월 2일
+        (11, 3): 1546135,   # 11월 3일
+        (11, 4): 1546136,   # 11월 4일
+        (11, 5): 1546137,   # 11월 5일
+        (11, 6): 1546138,   # 11월 6일
+        (11, 7): 1149243,   # 11월 7일
+        (11, 8): 1546139,   # 11월 8일
+        (11, 9): 1546140,   # 11월 9일
+        (11, 10): 1546141,   # 11월 10일
+        (11, 11): 1546142,   # 11월 11일
+        (11, 12): 1546143,   # 11월 12일
+        (11, 13): 1546144,   # 11월 13일
+        (11, 14): 1546145,   # 11월 14일
+        (11, 15): 1546146,   # 11월 15일
+        (11, 16): 1546147,   # 11월 16일
+        (11, 17): 1546148,   # 11월 17일
+        (11, 18): 1546149,   # 11월 18일
+        (11, 19): 1546150,   # 11월 19일
+        (11, 20): 1546151,   # 11월 20일
+        (11, 21): 1546152,   # 11월 21일
+        (11, 22): 1546153,   # 11월 22일
+        (11, 23): 1546154,   # 11월 23일
+        (11, 24): 1546155,   # 11월 24일
+        (11, 25): 1546156,   # 11월 25일
+        (11, 26): 1546157,   # 11월 26일
+        (11, 27): 1546158,   # 11월 27일
+        (11, 28): 1546159,   # 11월 28일
+        (11, 29): 1546160,   # 11월 29일
+        (11, 30): 1546161,   # 11월 30일
+    }
+    SEAT_PRIORITY = ['23', '22', '24', '21', '10', '11', '1', '20', '9', '12', '2', '19', '8', '13', '4', '17', '7', '14', '5', '16', '6', '15']
 
-        try:
-            d_target = datetime.strptime(target_date_str, "%Y%m%d")
-            year_month = d_target.strftime("%Y%m")
-            schedule_url = f"https://no1.sunsang24.com/ship/schedule_fleet/{year_month}"
-            date_class = f"d{d_target.strftime('%Y-%m-%d')}"
-            table_id = date_class
-            self.log(f"🎯 Schedule URL: {schedule_url}")
-        except Exception as e:
-            self.log(f"❌ Error: {e}"); return
-        
-        self.log(f"🌍 스케줄 페이지 사전 로드 중...")
-        schedule_preloaded = False
-        try:
-            self.driver.get(schedule_url)
-            try:
-                date_link = self.driver.find_element(By.CSS_SELECTOR, f"a.{date_class}")
-                    if "no_schedule" not in (date_link.get_attribute("class") or ""):
-                        date_link.click()
-                        wait_sec = 1.2 if test_mode else 1.5
-                        time.sleep(wait_sec)
-                        schedule_preloaded = True
-            except: pass
-        except: pass
-
-        if not test_mode: self.wait_until_target_time(target_time)
-        else: self.log("🚀 TEST MODE")
-
-        self.log(f"🔥 예약 시도 시작")
-        reservation_opened = False
-        for attempt in range(5000):
-            if self.success_event.is_set(): return
-            try:
-                is_gap_attempt = (test_mode and schedule_preloaded and attempt == 0)
-                
-                if not is_gap_attempt:
-                    self.driver.refresh()
-                    try:
-                        if not (schedule_preloaded and attempt == 0):
-                            WebDriverWait(self.driver, 0.05).until(EC.element_to_be_clickable((By.CSS_SELECTOR, f"a.{date_class}"))).click()
-                    except: continue
-                try:
-                    reserve_btn = WebDriverWait(self.driver, 1.2).until(EC.presence_of_element_located((By.CSS_SELECTOR, f"table#{table_id} button.btn_ship_reservation")))
-                    btn_text = reserve_btn.text.strip()
-                    if not btn_text:
-                        for _ in range(12):
-                            time.sleep(0.1); btn_text = reserve_btn.text.strip()
-                            if btn_text: break
-                    if "바로예약" in btn_text:
-                        self.log(f"✅ 바로예약 버튼 발견!")
-                        main_window = self.driver.current_window_handle
-                        reserve_btn.click()
-                        WebDriverWait(self.driver, 7).until(lambda d: len(d.window_handles) > 1)
-                        for w in self.driver.window_handles:
-                            if w != main_window: self.driver.switch_to.window(w); break
-                        try: WebDriverWait(self.driver, 5).until(EC.presence_of_element_located((By.CSS_SELECTOR, "a.plus")))
-                        except: pass
-                        reservation_opened = True; break
-                    else: self.log(f"⏳ 대기 중... ({attempt+1})")
-                except: self.log(f"⏳ 버튼 대기 중... ({attempt+1})")
-            except: pass
-
-        if not reservation_opened:
-            self.log("❌ 실패"); while True: time.sleep(1); return
-
-        while True:
-            if self.success_event.is_set(): break
-            process_start_time = time.time()
-            try:
-                radios = self.driver.find_elements(By.CSS_SELECTOR, "input[type='radio'][name='default_schedule_no']")
-                if radios: self.driver.execute_script("arguments[0].click();", radios[0])
-                
-                has_seat = "자리선택" in self.driver.find_element(By.TAG_NAME, "body").text if self.driver.find_elements(By.TAG_NAME, "body") else False
-                self.log(f"📌 좌석 선택 기능: {'있음' if has_seat else '없음'}")
-                
-                plus_btns = self.driver.find_elements(By.CSS_SELECTOR, "a.plus")
-                if plus_btns:
-                    for _ in range(person_count): plus_btns[0].click(); time.sleep(0.01)
-                    self.log(f"✅ 인원 {person_count}명")
-                
-                self.driver.find_element(By.CSS_SELECTOR, "input[name='name']").send_keys(user_name)
-                self.log(f"✅ 예약자명: {user_name}")
-                if len(user_phone) == 11:
-                    self.driver.find_element(By.CSS_SELECTOR, "input[name='phone2']").send_keys(user_phone[3:7])
-                    self.driver.find_element(By.CSS_SELECTOR, "input[name='phone3']").send_keys(user_phone[7:])
-                    self.log(f"✅ 전화번호 입력")
-                try: self.driver.execute_script("arguments[0].click();", self.driver.find_element(By.CSS_SELECTOR, "input[name='all_check']"))
-                except: pass
-                
-                self.log("🚀 예약하기 버튼 클릭...")
-                self.driver.execute_script("arguments[0].click();", self.driver.find_element(By.CSS_SELECTOR, "#btn_payment, a.btn_payment"))
-                try:
-                    alert = WebDriverWait(self.driver, 3).until(EC.alert_is_present())
-                    self.log(f"🔔 Alert: {alert.text}")
-                    if not self.simulation_mode: alert.accept()
-                    else: return
-                except: pass
-                
-                self.log("🔍 예약 결과 확인 중...")
-                check_start = time.time()
-                while time.time() - check_start < 10:
-                    if "reservation_detail" in self.driver.current_url or any(kw in self.driver.page_source for kw in ['예약현황', '예약접수 완료!']):
-                        self.log("🎉 예약 성공!"); self.success_event.set()
-                        while True: time.sleep(1); return
-                    time.sleep(0.2)
-                
-                self.browsers.append(self.driver)
-                t = threading.Thread(target=self.monitor_browser_for_success, args=(self.driver, len(self.browsers))); t.daemon = True; t.start()
-                self.browser_threads.append(t)
-                if len(self.browsers) >= self.max_browsers:
-                    while not self.success_event.is_set(): time.sleep(0.5)
-                    return
-                self.log(f"🔄 새 브라우저 재시도...")
-                self.setup_driver(); self.driver.get(schedule_url)
-                try:
-                    WebDriverWait(self.driver, 3).until(EC.element_to_be_clickable((By.CSS_SELECTOR, f"a.{date_class}"))).click()
-                    WebDriverWait(self.driver, 3).until(EC.presence_of_element_located((By.CSS_SELECTOR, f"table#{table_id} button.btn_ship_reservation"))).click()
-                    WebDriverWait(self.driver, 7).until(lambda d: len(d.window_handles) > 1)
-                    for w in self.driver.window_handles:
-                        if w != self.driver.current_window_handle: self.driver.switch_to.window(w); break
-                except: pass
-            except: pass
-        while True: time.sleep(1)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", required=True)
     args = parser.parse_args()
-    with open(args.config, 'r', encoding='utf-8') as f: config = json.load(f)
-    bot = NumberOneBot(config)
-    try: bot.run()
-    except KeyboardInterrupt: bot.stop()
+
+    with open(args.config, 'r', encoding='utf-8') as f:
+        config = json.load(f)
+
+    bot = 넘버원호Bot(config)
+    try:
+        bot.run()
+    except KeyboardInterrupt:
+        bot.stop()

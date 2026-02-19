@@ -14,8 +14,10 @@ import requests
 import calendar
 import ctypes
 from datetime import datetime
+import ttkbootstrap as ttk
+from ttkbootstrap.constants import *
 from tkinter import *
-from tkinter import ttk, messagebox, scrolledtext
+from tkinter import messagebox
 
 # 트레이 아이콘 지원
 try:
@@ -44,7 +46,7 @@ PRESETS_FILE = "cafe_keyword_presets.json"
 
 class NaverCafeMonitorGUI:
     def __init__(self):
-        self.root = Tk()
+        self.root = ttk.Window(themename="darkly")
         self.root.title("🔔 네이버 카페 양도게시판 모니터")
         
         # 창 크기 및 화면 중앙 위치
@@ -185,7 +187,7 @@ class NaverCafeMonitorGUI:
         main_frame.pack(fill=BOTH, expand=True)
         
         # ========== 키워드 관리 ==========
-        keyword_frame = ttk.LabelFrame(main_frame, text="🔑 키워드 관리", padding="10")
+        keyword_frame = ttk.Labelframe(main_frame, text="🔑 키워드 관리", padding="10", bootstyle="info")
         keyword_frame.pack(fill=X, pady=5)
         
         # 키워드 입력
@@ -239,7 +241,7 @@ class NaverCafeMonitorGUI:
         self.btn_month_11.pack(side=LEFT, padx=1)
         
         # ========== 설정 ==========
-        settings_frame = ttk.LabelFrame(main_frame, text="⚙️ 설정", padding="5")
+        settings_frame = ttk.Labelframe(main_frame, text="⚙️ 설정", padding="5", bootstyle="warning")
         settings_frame.pack(fill=X, pady=5)
         
         # 체크 간격
@@ -257,10 +259,10 @@ class NaverCafeMonitorGUI:
         ttk.Label(interval_frame, text="초").pack(side=LEFT)
         
         self.var_headless = BooleanVar(value=self.config.get('headless_mode', False))
-        ttk.Checkbutton(interval_frame, text="헤드리스 모드", variable=self.var_headless).pack(side=LEFT, padx=20)
+        ttk.Checkbutton(interval_frame, text="헤드리스 모드", variable=self.var_headless, bootstyle="info-round-toggle").pack(side=LEFT, padx=20)
         
         # ========== 통계 패널 ==========
-        stats_frame = ttk.LabelFrame(main_frame, text="📊 통계", padding="5")
+        stats_frame = ttk.Labelframe(main_frame, text="📊 통계", padding="5", bootstyle="primary")
         stats_frame.pack(fill=X, pady=5)
         
         self.lbl_stats = ttk.Label(stats_frame, text="체크: 0회 | 알림: 0건 | 실행시간: -")
@@ -273,24 +275,25 @@ class NaverCafeMonitorGUI:
         btn_frame = ttk.Frame(main_frame)
         btn_frame.pack(fill=X, pady=10)
         
-        self.btn_start = ttk.Button(btn_frame, text="▶ 모니터링 시작", command=self.start_monitoring)
+        self.btn_start = ttk.Button(btn_frame, text="▶ 모니터링 시작", command=self.start_monitoring, bootstyle="success")
         self.btn_start.pack(side=LEFT, padx=5)
-        
-        self.btn_stop = ttk.Button(btn_frame, text="⬛ 중지", command=self.stop_monitoring, state=DISABLED)
+
+        self.btn_stop = ttk.Button(btn_frame, text="⬛ 중지", command=self.stop_monitoring, state=DISABLED, bootstyle="danger")
         self.btn_stop.pack(side=LEFT, padx=5)
-        
-        ttk.Button(btn_frame, text="💾 설정 저장", command=self.save_config).pack(side=LEFT, padx=5)
-        ttk.Button(btn_frame, text="📋 알림 히스토리", command=self.show_alert_history).pack(side=RIGHT, padx=5)
-        
+
+        ttk.Button(btn_frame, text="💾 설정 저장", command=self.save_config, bootstyle="secondary").pack(side=LEFT, padx=5)
+        ttk.Button(btn_frame, text="📋 알림 히스토리", command=self.show_alert_history, bootstyle="info-outline").pack(side=RIGHT, padx=5)
+
         # 숨김 버튼 (트레이로 숨기기)
         if TRAY_AVAILABLE:
-            ttk.Button(btn_frame, text="👁️ 숨김", command=self.hide_to_tray).pack(side=RIGHT, padx=5)
+            ttk.Button(btn_frame, text="👁️ 숨김", command=self.hide_to_tray, bootstyle="info-outline").pack(side=RIGHT, padx=5)
         
         # ========== 로그 ==========
-        log_frame = ttk.LabelFrame(main_frame, text="📋 로그", padding="5")
+        log_frame = ttk.Labelframe(main_frame, text="📋 로그", padding="5", bootstyle="secondary")
         log_frame.pack(fill=BOTH, expand=True, pady=5)
-        
-        self.log_area = scrolledtext.ScrolledText(log_frame, height=15, wrap=WORD, state=DISABLED)
+
+        self.log_area = Text(log_frame, height=15, wrap=WORD, state=DISABLED, font=("Consolas", 10),
+                             bg="#1e1e1e", fg="#d4d4d4", insertbackground="#d4d4d4")
         self.log_area.pack(fill=BOTH, expand=True)
     
     def log_msg(self, msg):
@@ -517,7 +520,7 @@ class NaverCafeMonitorGUI:
         months_frame.pack(fill=BOTH, expand=True)
         
         # 선택된 월 캘린더 생성
-        month_frame = ttk.LabelFrame(months_frame, text=f"{month}월", padding="5")
+        month_frame = ttk.Labelframe(months_frame, text=f"{month}월", padding="5", bootstyle="primary")
         month_frame.pack(fill=BOTH, expand=True)
         
         # 요일 헤더

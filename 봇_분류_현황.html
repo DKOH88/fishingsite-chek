@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>봇 분류 현황</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); color: #eee; min-height: 100vh; padding: 20px; }
+        .container { max-width: 1400px; margin: 0 auto; }
+        h1 { text-align: center; color: #00d4ff; margin-bottom: 10px; font-size: 2.5em; text-shadow: 0 0 20px rgba(0, 212, 255, 0.5); }
+        .subtitle { text-align: center; color: #888; margin-bottom: 20px; font-size: 1.1em; }
+
+        /* 탭 스타일 */
+        .tab-container { display: flex; justify-content: center; gap: 10px; margin-bottom: 30px; }
+        .tab-btn { padding: 15px 40px; font-size: 1.2em; font-weight: bold; border: none; border-radius: 15px 15px 0 0; cursor: pointer; transition: all 0.3s ease; }
+        .tab-btn.active { background: linear-gradient(135deg, #4CAF50, #45a049); color: white; transform: translateY(-5px); box-shadow: 0 5px 20px rgba(76, 175, 80, 0.4); }
+        .tab-btn.inactive { background: rgba(255, 255, 255, 0.1); color: #888; }
+        .tab-btn.inactive:hover { background: rgba(255, 255, 255, 0.2); color: #fff; }
+        .tab-btn .emoji { font-size: 1.3em; margin-right: 8px; }
+
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        .search-container { display: flex; justify-content: center; margin-bottom: 30px; position: sticky; top: 10px; z-index: 100; }
+        .search-box { display: flex; align-items: center; background: rgba(0, 0, 0, 0.6); border-radius: 50px; padding: 5px 20px; border: 2px solid rgba(0, 212, 255, 0.3); backdrop-filter: blur(10px); box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3); transition: all 0.3s ease; }
+        .search-box:focus-within { border-color: #00d4ff; box-shadow: 0 5px 30px rgba(0, 212, 255, 0.3); }
+        .search-box input { background: transparent; border: none; outline: none; color: #fff; font-size: 1.1em; padding: 12px 15px; width: 300px; }
+        .search-box input::placeholder { color: #666; }
+        .search-box .search-icon { font-size: 1.3em; color: #00d4ff; }
+        .search-box button { background: linear-gradient(135deg, #00d4ff, #0099cc); border: none; color: #fff; padding: 10px 20px; border-radius: 25px; cursor: pointer; font-weight: 600; transition: all 0.3s ease; }
+        .search-box button:hover { transform: scale(1.05); box-shadow: 0 5px 15px rgba(0, 212, 255, 0.4); }
+        .search-result { text-align: center; margin-bottom: 20px; padding: 10px; border-radius: 10px; display: none; }
+        .search-result.found { display: block; background: rgba(76, 175, 80, 0.2); color: #4CAF50; }
+        .search-result.not-found { display: block; background: rgba(244, 67, 54, 0.2); color: #f44336; }
+        .summary { display: flex; justify-content: center; gap: 20px; margin-bottom: 40px; flex-wrap: wrap; }
+        .summary-card { background: rgba(255, 255, 255, 0.1); border-radius: 15px; padding: 20px 30px; text-align: center; backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.1); }
+        .summary-card .number { font-size: 2.5em; font-weight: bold; color: #00d4ff; }
+        .summary-card .label { color: #aaa; font-size: 0.9em; }
+        .section { background: rgba(255, 255, 255, 0.05); border-radius: 20px; padding: 25px; margin-bottom: 30px; backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.1); }
+        .section h2 { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 2px solid rgba(255, 255, 255, 0.1); }
+        .section h2 .icon { font-size: 1.5em; }
+        .section h2 .count { background: rgba(0, 212, 255, 0.2); color: #00d4ff; padding: 5px 15px; border-radius: 20px; font-size: 0.8em; margin-left: auto; }
+        .type1 h2 { color: #4CAF50; } .type1 h2 .count { background: rgba(76, 175, 80, 0.2); color: #4CAF50; }
+        .type2 h2 { color: #2196F3; } .type2 h2 .count { background: rgba(33, 150, 243, 0.2); color: #2196F3; }
+        .type3 h2 { color: #FF9800; } .type3 h2 .count { background: rgba(255, 152, 0, 0.2); color: #FF9800; }
+        .type4 h2 { color: #E91E63; } .type4 h2 .count { background: rgba(233, 30, 99, 0.2); color: #E91E63; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid rgba(255, 255, 255, 0.1); }
+        th { background: rgba(0, 0, 0, 0.3); color: #00d4ff; font-weight: 600; }
+        tr:hover { background: rgba(255, 255, 255, 0.05); }
+        tr.highlight { background: rgba(0, 212, 255, 0.3) !important; animation: pulse 1.5s ease-in-out; }
+        @keyframes pulse { 0%, 100% { background: rgba(0, 212, 255, 0.3); } 50% { background: rgba(0, 212, 255, 0.5); } }
+        .boat-name { font-weight: 600; color: #fff; }
+        .seat-priority { font-family: 'Consolas', 'Monaco', monospace; color: #ffd700; font-size: 0.9em; }
+        .badge { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 0.75em; font-weight: 600; }
+        .badge-step2 { background: rgba(76, 175, 80, 0.2); color: #4CAF50; }
+        .badge-step3 { background: rgba(255, 152, 0, 0.2); color: #FF9800; }
+        .badge-noseat { background: rgba(158, 158, 158, 0.2); color: #9E9E9E; }
+        .badge-mapping { background: rgba(156, 39, 176, 0.2); color: #9C27B0; }
+        .badge-nomapping { background: rgba(96, 125, 139, 0.2); color: #607D8B; }
+        .footer { text-align: center; color: #666; margin-top: 40px; padding: 20px; }
+        @media (max-width: 768px) { .summary { flex-direction: column; align-items: center; } th, td { padding: 8px 10px; font-size: 0.9em; } .search-box input { width: 200px; } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎣 봇 분류 현황</h1>
+        <p class="subtitle">base_bot.py 기반 통합 봇 시스템</p>
+
+        <!-- 탭 버튼 -->
+        <div class="tab-container">
+            <button class="tab-btn active" onclick="switchTab('thefishing')"><span class="emoji">🎣</span>더피싱 (70)</button>
+            <button class="tab-btn inactive" onclick="switchTab('sunsang24')"><span class="emoji">⛵</span>선상24 (25)</button>
+        </div>
+
+        <!-- 더피싱 탭 -->
+        <div id="thefishing-tab" class="tab-content active">
+            <div class="search-container">
+                <div class="search-box">
+                    <span class="search-icon">🔍</span>
+                    <input type="text" id="tfSearchInput" placeholder="선사명 검색 (예: 만석호)" onkeypress="if(event.key==='Enter') searchBoat('tf')">
+                    <button onclick="searchBoat('tf')">검색</button>
+                </div>
+            </div>
+            <div id="tfSearchResult" class="search-result"></div>
+
+            <div class="summary">
+                <div class="summary-card"><div class="number">35</div><div class="label">STEP2 + 좌석X</div></div>
+                <div class="summary-card"><div class="number">20</div><div class="label">STEP2 + 좌석O</div></div>
+                <div class="summary-card"><div class="number">9</div><div class="label">STEP3 + 좌석X</div></div>
+                <div class="summary-card"><div class="number">6</div><div class="label">STEP3 + 좌석O</div></div>
+            </div>
+
+            <div class="section type1">
+                <h2><span class="icon">📋</span>1. STEP2 + 좌석선택 없음<span class="count">35개</span></h2>
+                <table><thead><tr><th style="width:50px">#</th><th>선사명</th><th>타입</th></tr></thead>
+                <tbody><tr data-name="금땡이호"><td>1</td><td class="boat-name">금땡이호</td><td><span class="badge badge-step2">2-STEP</span> <span class="badge badge-noseat">좌석X</span></td></tr>
+<tr data-name="까칠이호"><td>2</td><td class="boat-name">까칠이호</td><td><span class="badge badge-step2">2-STEP</span> <span class="badge badge-noseat">좌석X</span></td></tr>
+<tr data-name="깜보호"><td>3</td><td class="boat-name">깜보호</td><td><span class="badge badge-step2">2-STEP</span> <span class="badge badge-noseat">좌석X</span></td></tr>
+<tr data-name="뉴성령호"><td>4</td><td class="boat-name">뉴성령호</td><td><span class="badge badge-step2">2-STEP</span> <span class="badge badge-noseat">좌석X</span></td></tr>
+<tr data-name="뉴신정호"><td>5</td><td class="boat-name">뉴신정호</td><td><span class="badge badge-step2">2-STEP</span> <span class="badge badge-noseat">좌석X</span></td></tr>
+<tr data-name="뉴청남호"><td>6</td><td class="boat-name">뉴청남호</td><td><span class="badge badge-step2">2-STEP</span> <span class="badge badge-noseat">좌석X</span></td></tr>
+<tr data-name="루디호"><td>7</td><td class="boat-name">루디호</td><td><span class="badge badge-step2">2-STEP</span> <span class="badge badge-noseat">좌석X</span></td></tr>
+<tr data-name="마그마호"><td>8</td><td class="boat-name">마그마호</td><td><span class="badge badge-step2">2-STEP</span> <span class="badge badge-noseat">좌석X</span></td></tr>
+<tr data-name="범블비호"><td>9</td><td class="boat-name">범블비호</td><td><span class="badge badge-step2">2-STEP</span> <span class="badge badge-noseat">좌석X</span></td></tr>
+<tr data-name="부흥호"><td>10</td><td class="boat-name">부흥호</td><td><span class="badge badge-step2">2-STEP</span> <span class="badge badge-noseat">좌석X</span></td></tr>
+<tr data-name="블레스호"><td>11</td><td class="boat-name">블레스호</td><td><span class="badge badge-step2">2-STEP</span> <span class="badge badge-noseat">좌석X</span></td></tr>
+<tr data-name="블루오션호"><td>12</td><td class="boat-name">블루오션호</td><td><span class="badge badge-step2">2-STEP</span> <span class="badge badge-noseat">좌석X</span></td></tr>
+<tr data-name="블루호"><td>13</td><td class="boat-name">블루호</td><td><span class="badge badge-step2">2-STEP</span> <span class="badge badge-noseat">좌석X</span></td></tr>
+<tr data-name="비엔나호"><td>14</td><td class="boat-name">비엔나호</td><td><span class="badge badge-step2">2-STEP</span> <span class="badge badge-noseat">좌석X</span></td></tr>
+<tr data-name="샤크호"><td>15</td><td class="boat-name">샤크호</td><td><span class="badge badge-step2">2-STEP</span> <span class="badge badge-noseat">좌석X</span></td></tr>
+<tr data-name="솔티가호"><td>16</td><td class="boat-name">솔티가호</td><td><span class="badge badge-step2">2-STEP</span> <span class="badge badge-noseat">좌석X</span></td></tr>
+<tr data-name="승하호"><td>17</td><td class="boat-name">승하호</td><td><span class="badge badge-step2">2-STEP</span> <span class="badge badge-noseat">좌석X</span></td></tr>
+<tr data-name="아인스호"><td>18</td><td class="boat-name">아인스호</td><td><span class="badge badge-step2">2-STEP</span> <span class="badge badge-noseat">좌석X</span></td></tr>
+<tr data-name="야야호"><td>19</td><td class="boat-name">야야호</td><td><span class="badge badge-step2">2-STEP</span> <span class="badge badge-noseat">좌석X</span></td></tr>
+<tr data-name="양파호"><td>20</td><td class="boat-name">양파호</td><td><span class="badge badge-step2">2-STEP</span> <span class="badge badge-noseat">좌석X</span></td></tr>
+<tr data-name="여명호"><td>21</td><td class="boat-name">여명호</td><td><span class="badge badge-step2">2-STEP</span> <span class="badge badge-noseat">좌석X</span></td></tr>
+<tr data-name="영차호"><td>22</td><td class="boat-name">영차호</td><td><span class="badge badge-step2">2-STEP</span> <span class="badge badge-noseat">좌석X</span></td></tr>
+<tr data-name="유진호"><td>23</td><td class="boat-name">유진호</td><td><span class="badge badge-step2">2-STEP</span> <span class="badge badge-noseat">좌석X</span></td></tr>
+<tr data-name="장현호"><td>24</td><td class="boat-name">장현호</td><td><span class="badge badge-step2">2-STEP</span> <span class="badge badge-noseat">좌석X</span></td></tr>
+<tr data-name="청용호"><td>25</td><td class="boat-name">청용호</td><td><span class="badge badge-step2">2-STEP</span> <span class="badge badge-noseat">좌석X</span></td></tr>
+<tr data-name="청춘호"><td>26</td><td class="boat-name">청춘호</td><td><span class="badge badge-step2">2-STEP</span> <span class="badge badge-noseat">좌석X</span></td></tr>
+<tr data-name="카즈미호"><td>27</td><td class="boat-name">카즈미호</td><td><span class="badge badge-step2">2-STEP</span> <span class="badge badge-noseat">좌석X</span></td></tr>
+<tr data-name="퀸블레스호"><td>28</td><td class="boat-name">퀸블레스호</td><td><span class="badge badge-step2">2-STEP</span> <span class="badge badge-noseat">좌석X</span></td></tr>
+<tr data-name="팀루피호"><td>29</td><td class="boat-name">팀루피호</td><td><span class="badge badge-step2">2-STEP</span> <span class="badge badge-noseat">좌석X</span></td></tr>
+<tr data-name="팀바이트호"><td>30</td><td class="boat-name">팀바이트호</td><td><span class="badge badge-step2">2-STEP</span> <span class="badge badge-noseat">좌석X</span></td></tr>
+<tr data-name="페라리호"><td>31</td><td class="boat-name">페라리호</td><td><span class="badge badge-step2">2-STEP</span> <span class="badge badge-noseat">좌석X</span></td></tr>
+<tr data-name="프랜드호"><td>32</td><td class="boat-name">프랜드호</td><td><span class="badge badge-step2">2-STEP</span> <span class="badge badge-noseat">좌석X</span></td></tr>
+<tr data-name="하이피싱호"><td>33</td><td class="boat-name">하이피싱호</td><td><span class="badge badge-step2">2-STEP</span> <span class="badge badge-noseat">좌석X</span></td></tr>
+<tr data-name="행운호"><td>34</td><td class="boat-name">행운호</td><td><span class="badge badge-step2">2-STEP</span> <span class="badge badge-noseat">좌석X</span></td></tr>
+<tr data-name="헤라호"><td>35</td><td class="boat-name">헤라호</td><td><span class="badge badge-step2">2-STEP</span> <span class="badge badge-noseat">좌석X</span></td></tr></tbody></table>
+            </div>
+
+            <div class="section type2">
+                <h2><span class="icon">🪑</span>2. STEP2 + 좌석선택 있음<span class="count">20개</span></h2>
+                <table><thead><tr><th style="width:50px">#</th><th style="width:150px">선사명</th><th>우선 선택 자리</th></tr></thead>
+                <tbody><tr data-name="뉴찬스호"><td>1</td><td class="boat-name">뉴찬스호</td><td class="seat-priority">(기본 순서)</td></tr>
+<tr data-name="만수피싱호"><td>2</td><td class="boat-name">만수피싱호</td><td class="seat-priority">(기본 순서)</td></tr>
+<tr data-name="베스트3호"><td>3</td><td class="boat-name">베스트3호</td><td class="seat-priority">(기본 순서)</td></tr>
+<tr data-name="스타피싱호"><td>4</td><td class="boat-name">스타피싱호</td><td class="seat-priority">(기본 순서)</td></tr>
+<tr data-name="아라호"><td>5</td><td class="boat-name">아라호</td><td class="seat-priority">(기본 순서)</td></tr>
+<tr data-name="아이리스호"><td>6</td><td class="boat-name">아이리스호</td><td class="seat-priority">(기본 순서)</td></tr>
+<tr data-name="야호"><td>7</td><td class="boat-name">야호</td><td class="seat-priority">(기본 순서)</td></tr>
+<tr data-name="오닉스호"><td>8</td><td class="boat-name">오닉스호</td><td class="seat-priority">(기본 순서)</td></tr>
+<tr data-name="와이파이호"><td>9</td><td class="boat-name">와이파이호</td><td class="seat-priority">(기본 순서)</td></tr>
+<tr data-name="욜로호"><td>10</td><td class="boat-name">욜로호</td><td class="seat-priority">(기본 순서)</td></tr>
+<tr data-name="제트호"><td>11</td><td class="boat-name">제트호</td><td class="seat-priority">(기본 순서)</td></tr>
+<tr data-name="조커호"><td>12</td><td class="boat-name">조커호</td><td class="seat-priority">20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9...</td></tr>
+<tr data-name="지오디호"><td>13</td><td class="boat-name">지오디호</td><td class="seat-priority">(기본 순서)</td></tr>
+<tr data-name="짱구호"><td>14</td><td class="boat-name">짱구호</td><td class="seat-priority">(기본 순서)</td></tr>
+<tr data-name="캡틴호"><td>15</td><td class="boat-name">캡틴호</td><td class="seat-priority">(기본 순서)</td></tr>
+<tr data-name="크루즈호"><td>16</td><td class="boat-name">크루즈호</td><td class="seat-priority">(기본 순서)</td></tr>
+<tr data-name="팀만수호"><td>17</td><td class="boat-name">팀만수호</td><td class="seat-priority">1, 11, 10, 20, 2, 12, 9, 19, 3, 13, 8, 18</td></tr>
+<tr data-name="팀만수호2"><td>18</td><td class="boat-name">팀만수호2</td><td class="seat-priority">(기본 순서)</td></tr>
+<tr data-name="하와이호"><td>19</td><td class="boat-name">하와이호</td><td class="seat-priority">(기본 순서)</td></tr>
+<tr data-name="헤르메스호"><td>20</td><td class="boat-name">헤르메스호</td><td class="seat-priority">(기본 순서)</td></tr></tbody></table>
+            </div>
+
+            <div class="section type3">
+                <h2><span class="icon">📋</span>3. STEP3 + 좌석선택 없음<span class="count">9개</span></h2>
+                <table><thead><tr><th style="width:50px">#</th><th>선사명</th><th>타입</th></tr></thead>
+                <tbody><tr data-name="나폴리호"><td>1</td><td class="boat-name">나폴리호</td><td><span class="badge badge-step3">3-STEP</span> <span class="badge badge-noseat">좌석X</span></td></tr>
+<tr data-name="미라클호"><td>2</td><td class="boat-name">미라클호</td><td><span class="badge badge-step3">3-STEP</span> <span class="badge badge-noseat">좌석X</span></td></tr>
+<tr data-name="바이트호"><td>3</td><td class="boat-name">바이트호</td><td><span class="badge badge-step3">3-STEP</span> <span class="badge badge-noseat">좌석X</span></td></tr>
+<tr data-name="아일랜드호"><td>4</td><td class="boat-name">아일랜드호</td><td><span class="badge badge-step3">3-STEP</span> <span class="badge badge-noseat">좌석X</span></td></tr>
+<tr data-name="안흥골드피싱호"><td>5</td><td class="boat-name">안흥골드피싱호</td><td><span class="badge badge-step3">3-STEP</span> <span class="badge badge-noseat">좌석X</span></td></tr>
+<tr data-name="오디세이호"><td>6</td><td class="boat-name">오디세이호</td><td><span class="badge badge-step3">3-STEP</span> <span class="badge badge-noseat">좌석X</span></td></tr>
+<tr data-name="천일호"><td>7</td><td class="boat-name">천일호</td><td><span class="badge badge-step3">3-STEP</span> <span class="badge badge-noseat">좌석X</span></td></tr>
+<tr data-name="청광호"><td>8</td><td class="boat-name">청광호</td><td><span class="badge badge-step3">3-STEP</span> <span class="badge badge-noseat">좌석X</span></td></tr>
+<tr data-name="청남호"><td>9</td><td class="boat-name">청남호</td><td><span class="badge badge-step3">3-STEP</span> <span class="badge badge-noseat">좌석X</span></td></tr></tbody></table>
+            </div>
+
+            <div class="section type4">
+                <h2><span class="icon">🪑</span>4. STEP3 + 좌석선택 있음<span class="count">6개</span></h2>
+                <table><thead><tr><th style="width:50px">#</th><th style="width:150px">선사명</th><th>우선 선택 자리</th></tr></thead>
+                <tbody><tr data-name="골드피싱호"><td>1</td><td class="boat-name">골드피싱호</td><td class="seat-priority">(기본 순서)</td></tr>
+<tr data-name="만석호"><td>2</td><td class="boat-name">만석호</td><td class="seat-priority">1, 15, 2, 9, 8, 10, 7, 14, 3, 11, 6, 13...</td></tr>
+<tr data-name="승주호"><td>3</td><td class="boat-name">승주호</td><td class="seat-priority">(기본 순서)</td></tr>
+<tr data-name="예린호"><td>4</td><td class="boat-name">예린호</td><td class="seat-priority">D, A, C, B, 11, 10</td></tr>
+<tr data-name="으리호"><td>5</td><td class="boat-name">으리호</td><td class="seat-priority">(기본 순서)</td></tr>
+<tr data-name="헌터호"><td>6</td><td class="boat-name">헌터호</td><td class="seat-priority">(기본 순서)</td></tr></tbody></table>
+            </div>
+
+            <div class="footer"><p>Generated: 2026-02-10 22:17 | C:\gemini\fishing_bot\bots\더피싱</p></div>
+        </div>
+
+        <!-- 선상24 탭 -->
+        <div id="sunsang24-tab" class="tab-content">
+            <div class="search-container">
+                <div class="search-box">
+                    <span class="search-icon">🔍</span>
+                    <input type="text" id="ssSearchInput" placeholder="선사명 검색 (예: 빅보스호)" onkeypress="if(event.key==='Enter') searchBoat('ss')">
+                    <button onclick="searchBoat('ss')">검색</button>
+                </div>
+            </div>
+            <div id="ssSearchResult" class="search-result"></div>
+
+            <div class="summary">
+                <div class="summary-card"><div class="number">10</div><div class="label">맵핑X + 좌석X</div></div>
+                <div class="summary-card"><div class="number">1</div><div class="label">맵핑X + 좌석O</div></div>
+                <div class="summary-card"><div class="number">11</div><div class="label">맵핑O + 좌석X</div></div>
+                <div class="summary-card"><div class="number">3</div><div class="label">맵핑O + 좌석O</div></div>
+            </div>
+
+            <div class="section type1">
+                <h2><span class="icon">📋</span>1. 맵핑X + 좌석선택 없음<span class="count">10개</span></h2>
+                <table><thead><tr><th style="width:50px">#</th><th>선사명</th><th>서브도메인</th><th>타입</th></tr></thead>
+                <tbody><tr data-name="E.스마일"><td>1</td><td class="boat-name">E.스마일</td><td>esmile</td><td><span class="badge badge-nomapping">맵핑X</span> <span class="badge badge-noseat">좌석X</span></td></tr>
+<tr data-name="가가호"><td>2</td><td class="boat-name">가가호</td><td>gagaho</td><td><span class="badge badge-nomapping">맵핑X</span> <span class="badge badge-noseat">좌석X</span></td></tr>
+<tr data-name="가즈아호"><td>3</td><td class="boat-name">가즈아호</td><td>ocpro</td><td><span class="badge badge-nomapping">맵핑X</span> <span class="badge badge-noseat">좌석X</span></td></tr>
+<tr data-name="뉴항구호"><td>4</td><td class="boat-name">뉴항구호</td><td>daebak</td><td><span class="badge badge-nomapping">맵핑X</span> <span class="badge badge-noseat">좌석X</span></td></tr>
+<tr data-name="루키나 2호"><td>5</td><td class="boat-name">루키나 2호</td><td>lukina</td><td><span class="badge badge-nomapping">맵핑X</span> <span class="badge badge-noseat">좌석X</span></td></tr>
+<tr data-name="루키나호"><td>6</td><td class="boat-name">루키나호</td><td>lukina</td><td><span class="badge badge-nomapping">맵핑X</span> <span class="badge badge-noseat">좌석X</span></td></tr>
+<tr data-name="아이언호"><td>7</td><td class="boat-name">아이언호</td><td>iron</td><td><span class="badge badge-nomapping">맵핑X</span> <span class="badge badge-noseat">좌석X</span></td></tr>
+<tr data-name="어쩌다어부호"><td>8</td><td class="boat-name">어쩌다어부호</td><td>fisherman</td><td><span class="badge badge-nomapping">맵핑X</span> <span class="badge badge-noseat">좌석X</span></td></tr>
+<tr data-name="천마호"><td>9</td><td class="boat-name">천마호</td><td>metafishingclub</td><td><span class="badge badge-nomapping">맵핑X</span> <span class="badge badge-noseat">좌석X</span></td></tr>
+<tr data-name="프린스호"><td>10</td><td class="boat-name">프린스호</td><td>princeho</td><td><span class="badge badge-nomapping">맵핑X</span> <span class="badge badge-noseat">좌석X</span></td></tr></tbody></table>
+            </div>
+
+            <div class="section type2">
+                <h2><span class="icon">🪑</span>2. 맵핑X + 좌석선택 있음<span class="count">1개</span></h2>
+                <table><thead><tr><th style="width:50px">#</th><th style="width:150px">선사명</th><th>서브도메인</th><th>우선 선택 자리</th></tr></thead>
+                <tbody><tr data-name="동백호"><td>1</td><td class="boat-name">동백호</td><td>dongbaek</td><td class="seat-priority">1, 21, 10, 11, 2, 20</td></tr></tbody></table>
+            </div>
+
+            <div class="section type3">
+                <h2><span class="icon">📋</span>3. 맵핑O + 좌석선택 없음<span class="count">11개</span></h2>
+                <table><thead><tr><th style="width:50px">#</th><th>선사명</th><th>서브도메인</th><th>타입</th></tr></thead>
+                <tbody><tr data-name="기가호"><td>1</td><td class="boat-name">기가호</td><td>giga</td><td><span class="badge badge-mapping">맵핑O</span> <span class="badge badge-noseat">좌석X</span></td></tr>
+<tr data-name="도지호"><td>2</td><td class="boat-name">도지호</td><td>doji</td><td><span class="badge badge-mapping">맵핑O</span> <span class="badge badge-noseat">좌석X</span></td></tr>
+<tr data-name="빅보스호"><td>3</td><td class="boat-name">빅보스호</td><td>bigboss24</td><td><span class="badge badge-mapping">맵핑O</span> <span class="badge badge-noseat">좌석X</span></td></tr>
+<tr data-name="아리랑1호"><td>4</td><td class="boat-name">아리랑1호</td><td>arirang</td><td><span class="badge badge-mapping">맵핑O</span> <span class="badge badge-noseat">좌석X</span></td></tr>
+<tr data-name="악바리호"><td>5</td><td class="boat-name">악바리호</td><td>akbari</td><td><span class="badge badge-mapping">맵핑O</span> <span class="badge badge-noseat">좌석X</span></td></tr>
+<tr data-name="악바리호2"><td>6</td><td class="boat-name">악바리호2</td><td>akbari</td><td><span class="badge badge-mapping">맵핑O</span> <span class="badge badge-noseat">좌석X</span></td></tr>
+<tr data-name="오션스타1호"><td>7</td><td class="boat-name">오션스타1호</td><td>ysoceanstar</td><td><span class="badge badge-mapping">맵핑O</span> <span class="badge badge-noseat">좌석X</span></td></tr>
+<tr data-name="은가비호"><td>8</td><td class="boat-name">은가비호</td><td>eungabi</td><td><span class="badge badge-mapping">맵핑O</span> <span class="badge badge-noseat">좌석X</span></td></tr>
+<tr data-name="자이언트호"><td>9</td><td class="boat-name">자이언트호</td><td>rkclgh</td><td><span class="badge badge-mapping">맵핑O</span> <span class="badge badge-noseat">좌석X</span></td></tr>
+<tr data-name="제비호"><td>10</td><td class="boat-name">제비호</td><td>jebi</td><td><span class="badge badge-mapping">맵핑O</span> <span class="badge badge-noseat">좌석X</span></td></tr>
+<tr data-name="호랭이호"><td>11</td><td class="boat-name">호랭이호</td><td>horeng2</td><td><span class="badge badge-mapping">맵핑O</span> <span class="badge badge-noseat">좌석X</span></td></tr></tbody></table>
+            </div>
+
+            <div class="section type4">
+                <h2><span class="icon">🪑</span>4. 맵핑O + 좌석선택 있음<span class="count">3개</span></h2>
+                <table><thead><tr><th style="width:50px">#</th><th style="width:150px">선사명</th><th>서브도메인</th><th>우선 선택 자리</th></tr></thead>
+                <tbody><tr data-name="넘버원호"><td>1</td><td class="boat-name">넘버원호</td><td>no1</td><td class="seat-priority">23, 22, 24, 21, 10, 11, 1, 20, 9, 12, 2, 19...</td></tr>
+<tr data-name="팀에프원"><td>2</td><td class="boat-name">팀에프원</td><td>teamf</td><td class="seat-priority">21, 22, 10, 11, 1, 20, 9, 12</td></tr>
+<tr data-name="팀에프투"><td>3</td><td class="boat-name">팀에프투</td><td>teamf</td><td class="seat-priority">21, 23, 22, 24, 10, 11</td></tr></tbody></table>
+            </div>
+
+            <div class="footer"><p>Generated: 2026-02-10 22:17 | C:\gemini\fishing_bot\bots\선상24</p></div>
+        </div>
+    </div>
+
+    <script>
+        // 검색 상태 관리 (다음 결과 기능)
+        let searchState = {
+            tf: { lastQuery: '', currentIndex: 0, matchedRows: [] },
+            ss: { lastQuery: '', currentIndex: 0, matchedRows: [] }
+        };
+
+        function switchTab(tab) {
+            // 모든 탭 비활성화
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(el => {
+                el.classList.remove('active');
+                el.classList.add('inactive');
+            });
+
+            // 선택된 탭 활성화
+            document.getElementById(tab + '-tab').classList.add('active');
+            event.target.closest('.tab-btn').classList.remove('inactive');
+            event.target.closest('.tab-btn').classList.add('active');
+
+            // 검색 결과 초기화
+            document.querySelectorAll('.search-result').forEach(el => {
+                el.className = 'search-result';
+                el.style.display = 'none';
+            });
+            document.querySelectorAll('tr.highlight').forEach(tr => tr.classList.remove('highlight'));
+
+            // 검색 상태 초기화
+            searchState.tf = { lastQuery: '', currentIndex: 0, matchedRows: [] };
+            searchState.ss = { lastQuery: '', currentIndex: 0, matchedRows: [] };
+        }
+
+        function searchBoat(prefix) {
+            const inputId = prefix === 'tf' ? 'tfSearchInput' : 'ssSearchInput';
+            const resultId = prefix === 'tf' ? 'tfSearchResult' : 'ssSearchResult';
+            const tabId = prefix === 'tf' ? 'thefishing-tab' : 'sunsang24-tab';
+
+            const searchInput = document.getElementById(inputId).value.trim();
+            const searchResult = document.getElementById(resultId);
+            const tabContent = document.getElementById(tabId);
+            const state = searchState[prefix];
+
+            // 하이라이트 제거
+            tabContent.querySelectorAll('tr.highlight').forEach(tr => tr.classList.remove('highlight'));
+
+            if (!searchInput) {
+                searchResult.className = 'search-result';
+                searchResult.style.display = 'none';
+                state.lastQuery = '';
+                state.matchedRows = [];
+                return;
+            }
+
+            // 같은 검색어로 다시 검색하면 다음 결과로 이동
+            if (state.lastQuery === searchInput && state.matchedRows.length > 1) {
+                state.currentIndex = (state.currentIndex + 1) % state.matchedRows.length;
+            } else {
+                // 새로운 검색어 - 매칭되는 행 찾기
+                state.matchedRows = [];
+                state.currentIndex = 0;
+                const rows = tabContent.querySelectorAll('tr[data-name]');
+                rows.forEach(row => {
+                    const name = row.getAttribute('data-name');
+                    if (name.includes(searchInput)) {
+                        state.matchedRows.push({ row: row, name: name });
+                    }
+                });
+                state.lastQuery = searchInput;
+            }
+
+            if (state.matchedRows.length > 0) {
+                // 모든 매칭 행 하이라이트
+                state.matchedRows.forEach(item => item.row.classList.add('highlight'));
+
+                // 현재 인덱스의 행으로 스크롤
+                const currentMatch = state.matchedRows[state.currentIndex];
+                currentMatch.row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+                // 결과 메시지
+                if (state.matchedRows.length === 1) {
+                    searchResult.innerHTML = `✅ <strong>${currentMatch.name}</strong> 찾았습니다!`;
+                } else {
+                    const position = state.currentIndex + 1;
+                    searchResult.innerHTML = `✅ ${position}/${state.matchedRows.length}: <strong>${currentMatch.name}</strong> (다시 검색하면 다음 결과)`;
+                }
+                searchResult.className = 'search-result found';
+            } else {
+                searchResult.innerHTML = `❌ "<strong>${searchInput}</strong>" 선사를 찾을 수 없습니다.`;
+                searchResult.className = 'search-result not-found';
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('tfSearchInput').focus();
+        });
+    </script>
+</body>
+</html>

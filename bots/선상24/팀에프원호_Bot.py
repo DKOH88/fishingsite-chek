@@ -1,457 +1,343 @@
+# -*- coding: utf-8 -*-
+"""
+팀에프원 예약 봇 (선상24)
+패턴: 맵핑 있음 + 자리선택 있음
+"""
+
 import sys
 import json
-import time
 import argparse
-import threading
-from datetime import datetime
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from base_bot import BaseFishingBot
+from base_bot import SunSang24BaseBot
 
-class TeamF1Bot(BaseFishingBot):
-    def __init__(self, config):
-        super().__init__(config)
-        self.success_event = threading.Event()
-        self.browser_threads = []
-        self.browsers = []
-        self.max_browsers = 3  # 최대 브라우저 수 (메인 + 재시도 2회)
 
-    def monitor_browser_for_success(self, driver, browser_id):
-        """백그라운드에서 브라우저의 성공 여부를 모니터링"""
-        self.log(f"🔍 [브라우저{browser_id}] 백그라운드 모니터링 시작...")
-        while not self.success_event.is_set():
-            try:
-                # URL 확인: reservation_detail
-                if "reservation_detail" in driver.current_url:
-                    self.log(f"🎉 [브라우저{browser_id}] 예약 성공! (URL: reservation_detail)")
-                    self.success_event.set()
-                    return
-                # 페이지 텍스트 확인
-                page_text = driver.page_source
-                success_keywords = ['예약현황', '예약접수 완료!', '총 상품금액', '예약금']
-                if any(kw in page_text for kw in success_keywords):
-                    self.log(f"🎉 [브라우저{browser_id}] 예약 성공! (텍스트 확인)")
-                    self.success_event.set()
-                    return
-            except:
-                pass
-            time.sleep(0.1)
-        self.log(f"🛑 [브라우저{browser_id}] 모니터링 중지")
+class 팀에프원Bot(SunSang24BaseBot):
+    SUBDOMAIN = "teamf"
+    PROVIDER_NAME = "팀에프원"
+    HAS_SEAT_SELECTION = True
+    USE_DIRECT_MAPPING = True
 
-    def run(self):
-        self.setup_driver()
-        wait = WebDriverWait(self.driver, 30)
+    # ID 매핑 (일별: 월, 일)
+    ID_MAPPING = {
+        (3, 1): 1636787,   # 3월 1일
+        (3, 2): 1636788,   # 3월 2일
+        (3, 3): 1636789,   # 3월 3일
+        (3, 4): 1636790,   # 3월 4일
+        (3, 5): 1636791,   # 3월 5일
+        (3, 6): 1636792,   # 3월 6일
+        (3, 7): 1636793,   # 3월 7일
+        (3, 8): 1636794,   # 3월 8일
+        (3, 9): 1636795,   # 3월 9일
+        (3, 10): 1636796,   # 3월 10일
+        (3, 11): 1636797,   # 3월 11일
+        (3, 12): 1636798,   # 3월 12일
+        (3, 13): 1636799,   # 3월 13일
+        (3, 14): 1636800,   # 3월 14일
+        (3, 15): 1636801,   # 3월 15일
+        (3, 16): 1636802,   # 3월 16일
+        (3, 17): 1636803,   # 3월 17일
+        (3, 18): 1636804,   # 3월 18일
+        (3, 19): 1636805,   # 3월 19일
+        (3, 20): 1636806,   # 3월 20일
+        (3, 21): 1636807,   # 3월 21일
+        (3, 22): 1636808,   # 3월 22일
+        (3, 23): 1636809,   # 3월 23일
+        (3, 24): 1636810,   # 3월 24일
+        (3, 25): 1636811,   # 3월 25일
+        (3, 26): 1636812,   # 3월 26일
+        (3, 27): 1636813,   # 3월 27일
+        (3, 28): 1636814,   # 3월 28일
+        (3, 29): 1636815,   # 3월 29일
+        (3, 30): 1636816,   # 3월 30일
+        (3, 31): 1636817,   # 3월 31일
+        (4, 1): 1637376,   # 4월 1일
+        (4, 2): 1637377,   # 4월 2일
+        (4, 3): 1637378,   # 4월 3일
+        (4, 4): 1637379,   # 4월 4일
+        (4, 5): 1637380,   # 4월 5일
+        (4, 6): 1637381,   # 4월 6일
+        (4, 7): 1637382,   # 4월 7일
+        (4, 8): 1637383,   # 4월 8일
+        (4, 9): 1637384,   # 4월 9일
+        (4, 10): 1637385,   # 4월 10일
+        (4, 11): 1637386,   # 4월 11일
+        (4, 12): 1637387,   # 4월 12일
+        (4, 13): 1637388,   # 4월 13일
+        (4, 14): 1637389,   # 4월 14일
+        (4, 15): 1637390,   # 4월 15일
+        (4, 16): 1637391,   # 4월 16일
+        (4, 17): 1637392,   # 4월 17일
+        (4, 18): 1637393,   # 4월 18일
+        (4, 19): 1637394,   # 4월 19일
+        (4, 20): 1637395,   # 4월 20일
+        (4, 21): 1637396,   # 4월 21일
+        (4, 22): 1637397,   # 4월 22일
+        (4, 23): 1637398,   # 4월 23일
+        (4, 24): 1637399,   # 4월 24일
+        (4, 25): 1637400,   # 4월 25일
+        (4, 26): 1637401,   # 4월 26일
+        (4, 27): 1637402,   # 4월 27일
+        (4, 28): 1637403,   # 4월 28일
+        (4, 29): 1637404,   # 4월 29일
+        (4, 30): 1637405,   # 4월 30일
+        (5, 1): 1637406,   # 5월 1일
+        (5, 2): 1637407,   # 5월 2일
+        (5, 3): 1637408,   # 5월 3일
+        (5, 4): 1637409,   # 5월 4일
+        (5, 5): 1637410,   # 5월 5일
+        (5, 6): 1637411,   # 5월 6일
+        (5, 7): 1637412,   # 5월 7일
+        (5, 8): 1637413,   # 5월 8일
+        (5, 9): 1637414,   # 5월 9일
+        (5, 10): 1637415,   # 5월 10일
+        (5, 11): 1637416,   # 5월 11일
+        (5, 12): 1637417,   # 5월 12일
+        (5, 13): 1637418,   # 5월 13일
+        (5, 14): 1637419,   # 5월 14일
+        (5, 15): 1637420,   # 5월 15일
+        (5, 16): 1637421,   # 5월 16일
+        (5, 17): 1637422,   # 5월 17일
+        (5, 18): 1637423,   # 5월 18일
+        (5, 19): 1637424,   # 5월 19일
+        (5, 20): 1637425,   # 5월 20일
+        (5, 21): 1637426,   # 5월 21일
+        (5, 22): 1637427,   # 5월 22일
+        (5, 23): 1637428,   # 5월 23일
+        (5, 24): 1637429,   # 5월 24일
+        (5, 25): 1637430,   # 5월 25일
+        (5, 26): 1637431,   # 5월 26일
+        (5, 27): 1637432,   # 5월 27일
+        (5, 28): 1637433,   # 5월 28일
+        (5, 29): 1637434,   # 5월 29일
+        (5, 30): 1637435,   # 5월 30일
+        (5, 31): 1637436,   # 5월 31일
+        (6, 1): 1637437,   # 6월 1일
+        (6, 2): 1637438,   # 6월 2일
+        (6, 3): 1637439,   # 6월 3일
+        (6, 4): 1637440,   # 6월 4일
+        (6, 5): 1637441,   # 6월 5일
+        (6, 6): 1637442,   # 6월 6일
+        (6, 7): 1637443,   # 6월 7일
+        (6, 8): 1637444,   # 6월 8일
+        (6, 9): 1637445,   # 6월 9일
+        (6, 10): 1637446,   # 6월 10일
+        (6, 11): 1637447,   # 6월 11일
+        (6, 12): 1637448,   # 6월 12일
+        (6, 13): 1637449,   # 6월 13일
+        (6, 14): 1637450,   # 6월 14일
+        (6, 15): 1637451,   # 6월 15일
+        (6, 16): 1637452,   # 6월 16일
+        (6, 17): 1637453,   # 6월 17일
+        (6, 18): 1637454,   # 6월 18일
+        (6, 19): 1637455,   # 6월 19일
+        (6, 20): 1637456,   # 6월 20일
+        (6, 21): 1637457,   # 6월 21일
+        (6, 22): 1637458,   # 6월 22일
+        (6, 23): 1637459,   # 6월 23일
+        (6, 24): 1637460,   # 6월 24일
+        (6, 25): 1637461,   # 6월 25일
+        (6, 26): 1637462,   # 6월 26일
+        (6, 27): 1637463,   # 6월 27일
+        (6, 28): 1637464,   # 6월 28일
+        (6, 29): 1637465,   # 6월 29일
+        (6, 30): 1637466,   # 6월 30일
+        (7, 1): 1637467,   # 7월 1일
+        (7, 2): 1637468,   # 7월 2일
+        (7, 3): 1637469,   # 7월 3일
+        (7, 4): 1637470,   # 7월 4일
+        (7, 5): 1637471,   # 7월 5일
+        (7, 6): 1637472,   # 7월 6일
+        (7, 7): 1637473,   # 7월 7일
+        (7, 8): 1637474,   # 7월 8일
+        (7, 9): 1637475,   # 7월 9일
+        (7, 10): 1637476,   # 7월 10일
+        (7, 11): 1637477,   # 7월 11일
+        (7, 12): 1637478,   # 7월 12일
+        (7, 13): 1637479,   # 7월 13일
+        (7, 14): 1637480,   # 7월 14일
+        (7, 15): 1637481,   # 7월 15일
+        (7, 16): 1637482,   # 7월 16일
+        (7, 17): 1637483,   # 7월 17일
+        (7, 18): 1637484,   # 7월 18일
+        (7, 19): 1637485,   # 7월 19일
+        (7, 20): 1637486,   # 7월 20일
+        (7, 21): 1637487,   # 7월 21일
+        (7, 22): 1637488,   # 7월 22일
+        (7, 23): 1637489,   # 7월 23일
+        (7, 24): 1637490,   # 7월 24일
+        (7, 25): 1637491,   # 7월 25일
+        (7, 26): 1637492,   # 7월 26일
+        (7, 27): 1637493,   # 7월 27일
+        (7, 28): 1637494,   # 7월 28일
+        (7, 29): 1637495,   # 7월 29일
+        (7, 30): 1637496,   # 7월 30일
+        (7, 31): 1637497,   # 7월 31일
+        (8, 1): 1637498,   # 8월 1일
+        (8, 2): 1637499,   # 8월 2일
+        (8, 3): 1637500,   # 8월 3일
+        (8, 4): 1637501,   # 8월 4일
+        (8, 5): 1637502,   # 8월 5일
+        (8, 6): 1637503,   # 8월 6일
+        (8, 7): 1637504,   # 8월 7일
+        (8, 8): 1637505,   # 8월 8일
+        (8, 9): 1637506,   # 8월 9일
+        (8, 10): 1637507,   # 8월 10일
+        (8, 11): 1637508,   # 8월 11일
+        (8, 12): 1637509,   # 8월 12일
+        (8, 13): 1637510,   # 8월 13일
+        (8, 14): 1637511,   # 8월 14일
+        (8, 15): 1637512,   # 8월 15일
+        (8, 16): 1637513,   # 8월 16일
+        (8, 17): 1637514,   # 8월 17일
+        (8, 18): 1637515,   # 8월 18일
+        (8, 19): 1637516,   # 8월 19일
+        (8, 20): 1637517,   # 8월 20일
+        (8, 21): 1637518,   # 8월 21일
+        (8, 22): 1637519,   # 8월 22일
+        (8, 23): 1637520,   # 8월 23일
+        (8, 24): 1637521,   # 8월 24일
+        (8, 25): 1637522,   # 8월 25일
+        (8, 26): 1637523,   # 8월 26일
+        (8, 27): 1637524,   # 8월 27일
+        (8, 28): 1637525,   # 8월 28일
+        (8, 29): 1637526,   # 8월 29일
+        (8, 30): 1637527,   # 8월 30일
+        (8, 31): 1637528,   # 8월 31일
+        (9, 1): 1637529,   # 9월 1일
+        (9, 2): 1637530,   # 9월 2일
+        (9, 3): 1637531,   # 9월 3일
+        (9, 4): 1637532,   # 9월 4일
+        (9, 5): 1637533,   # 9월 5일
+        (9, 6): 1637534,   # 9월 6일
+        (9, 7): 1637535,   # 9월 7일
+        (9, 8): 1637536,   # 9월 8일
+        (9, 9): 1637537,   # 9월 9일
+        (9, 10): 1637538,   # 9월 10일
+        (9, 11): 1637539,   # 9월 11일
+        (9, 12): 1637540,   # 9월 12일
+        (9, 13): 1637541,   # 9월 13일
+        (9, 14): 1637542,   # 9월 14일
+        (9, 15): 1637543,   # 9월 15일
+        (9, 16): 1637544,   # 9월 16일
+        (9, 17): 1637545,   # 9월 17일
+        (9, 18): 1637546,   # 9월 18일
+        (9, 19): 1637547,   # 9월 19일
+        (9, 20): 1637548,   # 9월 20일
+        (9, 21): 1637549,   # 9월 21일
+        (9, 22): 1637550,   # 9월 22일
+        (9, 23): 1637551,   # 9월 23일
+        (9, 24): 1637552,   # 9월 24일
+        (9, 25): 1637553,   # 9월 25일
+        (9, 26): 1637554,   # 9월 26일
+        (9, 27): 1637555,   # 9월 27일
+        (9, 28): 1637556,   # 9월 28일
+        (9, 29): 1637557,   # 9월 29일
+        (9, 30): 1637558,   # 9월 30일
+        (10, 1): 1637559,   # 10월 1일
+        (10, 2): 1637560,   # 10월 2일
+        (10, 3): 1637561,   # 10월 3일
+        (10, 4): 1637562,   # 10월 4일
+        (10, 5): 1637563,   # 10월 5일
+        (10, 6): 1637564,   # 10월 6일
+        (10, 7): 1637565,   # 10월 7일
+        (10, 8): 1637566,   # 10월 8일
+        (10, 9): 1637567,   # 10월 9일
+        (10, 10): 1637568,   # 10월 10일
+        (10, 11): 1637569,   # 10월 11일
+        (10, 12): 1637570,   # 10월 12일
+        (10, 13): 1637571,   # 10월 13일
+        (10, 14): 1637572,   # 10월 14일
+        (10, 15): 1637573,   # 10월 15일
+        (10, 16): 1637574,   # 10월 16일
+        (10, 17): 1637575,   # 10월 17일
+        (10, 18): 1637576,   # 10월 18일
+        (10, 19): 1637577,   # 10월 19일
+        (10, 20): 1637578,   # 10월 20일
+        (10, 21): 1637579,   # 10월 21일
+        (10, 22): 1637580,   # 10월 22일
+        (10, 23): 1637581,   # 10월 23일
+        (10, 24): 1637582,   # 10월 24일
+        (10, 25): 1637583,   # 10월 25일
+        (10, 26): 1637584,   # 10월 26일
+        (10, 27): 1637585,   # 10월 27일
+        (10, 28): 1637586,   # 10월 28일
+        (10, 29): 1637587,   # 10월 29일
+        (10, 30): 1637588,   # 10월 30일
+        (10, 31): 1637589,   # 10월 31일
+        (11, 1): 1637590,   # 11월 1일
+        (11, 2): 1637591,   # 11월 2일
+        (11, 3): 1637592,   # 11월 3일
+        (11, 4): 1637593,   # 11월 4일
+        (11, 5): 1637594,   # 11월 5일
+        (11, 6): 1637595,   # 11월 6일
+        (11, 7): 1637596,   # 11월 7일
+        (11, 8): 1637597,   # 11월 8일
+        (11, 9): 1637598,   # 11월 9일
+        (11, 10): 1637599,   # 11월 10일
+        (11, 11): 1637600,   # 11월 11일
+        (11, 12): 1637601,   # 11월 12일
+        (11, 13): 1637602,   # 11월 13일
+        (11, 14): 1637603,   # 11월 14일
+        (11, 15): 1637604,   # 11월 15일
+        (11, 16): 1637605,   # 11월 16일
+        (11, 17): 1637606,   # 11월 17일
+        (11, 18): 1637607,   # 11월 18일
+        (11, 19): 1637608,   # 11월 19일
+        (11, 20): 1637609,   # 11월 20일
+        (11, 21): 1637610,   # 11월 21일
+        (11, 22): 1637611,   # 11월 22일
+        (11, 23): 1637612,   # 11월 23일
+        (11, 24): 1637613,   # 11월 24일
+        (11, 25): 1637614,   # 11월 25일
+        (11, 26): 1637615,   # 11월 26일
+        (11, 27): 1637616,   # 11월 27일
+        (11, 28): 1637617,   # 11월 28일
+        (11, 29): 1637618,   # 11월 29일
+        (11, 30): 1637619,   # 11월 30일
+        (12, 1): 1637633,   # 12월 1일
+        (12, 2): 1637634,   # 12월 2일
+        (12, 3): 1637635,   # 12월 3일
+        (12, 4): 1637636,   # 12월 4일
+        (12, 5): 1637637,   # 12월 5일
+        (12, 6): 1637638,   # 12월 6일
+        (12, 7): 1637639,   # 12월 7일
+        (12, 8): 1637640,   # 12월 8일
+        (12, 9): 1637641,   # 12월 9일
+        (12, 10): 1637642,   # 12월 10일
+        (12, 11): 1637643,   # 12월 11일
+        (12, 12): 1637644,   # 12월 12일
+        (12, 13): 1637645,   # 12월 13일
+        (12, 14): 1637646,   # 12월 14일
+        (12, 15): 1637647,   # 12월 15일
+        (12, 16): 1637648,   # 12월 16일
+        (12, 17): 1637649,   # 12월 17일
+        (12, 18): 1637650,   # 12월 18일
+        (12, 19): 1637651,   # 12월 19일
+        (12, 20): 1637652,   # 12월 20일
+        (12, 21): 1637653,   # 12월 21일
+        (12, 22): 1637654,   # 12월 22일
+        (12, 23): 1637655,   # 12월 23일
+        (12, 24): 1637656,   # 12월 24일
+        (12, 25): 1637657,   # 12월 25일
+        (12, 26): 1637658,   # 12월 26일
+        (12, 27): 1637659,   # 12월 27일
+        (12, 28): 1637660,   # 12월 28일
+        (12, 29): 1637661,   # 12월 29일
+        (12, 30): 1637662,   # 12월 30일
+        (12, 31): 1637663,   # 12월 31일
+    }
+    SEAT_PRIORITY = ['21', '22', '10', '11', '1', '20', '9', '12']
 
-        # 1. Parse Config
-        target_date_str = self.config.get('target_date', '20260901')
-        target_time = self.config.get('target_time', '09:00:00')
-        test_mode = self.config.get('test_mode', False)
-        self.simulation_mode = self.config.get('simulation_mode', False)
-        
-        user_name = self.config.get('user_name', '')
-        user_depositor = self.config.get('user_depositor', '')
-        user_phone = self.config.get('user_phone', '')
-        configured_count = int(self.config.get('person_count', 1))
-
-        # 2. Calculate Target ID (팀에프원호 예약 ID)
-        try:
-            d_target = datetime.strptime(target_date_str, "%Y%m%d")
-            target_month = d_target.month
-            target_day = d_target.day
-            
-            if target_month == 1:
-                target_id = 1668274 + (target_day - 10)
-            elif target_month == 3:
-                target_id = 1636787 + (target_day - 1)
-            elif target_month == 9:
-                target_id = 16377529 + (target_day - 1)
-            elif target_month == 10:
-                target_id = 16377559 + (target_day - 1)
-            elif target_month == 11:
-                target_id = 16377590 + (target_day - 1)
-            elif target_month == 7:
-                if target_day > 9:
-                    self.log(f"❌ 7월 {target_day}일은 ID 매핑이 없습니다. (1~9일 지원)")
-                    return
-                target_id = 1637467 + (target_day - 1)
-            else:
-                self.log(f"❌ {target_month}월은 ID 매핑이 없습니다. (1월, 3월, 7월, 9월~11월 지원)")
-                return
-            
-            url = f"https://teamf.sunsang24.com/mypage/reservation_ready/{target_id}"
-            self.log(f"🎯 Target URL: {url} (ID: {target_id}, {target_month}월 {target_day}일)")
-            
-        except Exception as e:
-            self.log(f"❌ Date calculation error: {e}")
-            return
-        
-        # 2.5 Pre-load
-        self.log(f"🌍 페이지 사전 로드 중: {url}")
-        try:
-             self.driver.get(url)
-             try:
-                 alert = WebDriverWait(self.driver, 1).until(EC.alert_is_present())
-                 alert_text = alert.text
-                 self.log(f"🔔 사전 로드 시 알림 발생: {alert_text}")
-                 alert.accept()
-                 self.log("✅ 알림 확인 (오픈 시간 대기)")
-             except:
-                 pass
-             self.log("✅ 사전 로드 완료. 오픈 시간을 기다립니다...")
-        except Exception as e:
-             self.log(f"⚠️ Pre-load failed: {e}")
-
-        # 1.5 Scheduling
-        if not test_mode:
-            self.log(f"⏰ 실행 예약 시간: {target_time}...")
-            self.wait_until_target_time(target_time)
-        else:
-            self.log("🚀 TEST MODE ACTIVE: Skipping wait!")
-
-        # 3. Start Attack Loop
-        self.log(f"🔥 예약 시도 시작 (반복 루프): {url}")
-        max_retries = 5000
-        step1_success = False
-
-        for attempt in range(max_retries):
-            try:
-                self.driver.get(url)
-                
-                # Handle "잘못된 접근입니다.[배일정이 존재하지 않습니다.]" alert (서버 미오픈 시)
-                try:
-                    alert = WebDriverWait(self.driver, 0.05).until(EC.alert_is_present())
-                    alert_text = alert.text
-                    if "잘못된" in alert_text or "배일정" in alert_text or "존재하지" in alert_text:
-                        self.log(f"⚠️ 서버 미오픈: {alert_text} ({attempt+1}/{max_retries})")
-                        alert.accept()
-                        time.sleep(0.2)
-                        continue
-                    else:
-                        alert.accept()
-                except:
-                    pass
-                
-                if "Bad Gateway" in self.driver.title:
-                    continue
-                
-                if "login" in self.driver.current_url:
-                    self.log("🔒 Redirected to Login Page.")
-                    time.sleep(0.01)
-                    continue
-
-                # 페이지 준비 확인: '계좌번호', '환불계좌' 텍스트 감지
-                if "reservation_ready" in self.driver.current_url:
-                    try:
-                        page_text = self.driver.page_source
-                        ready_keywords = ['계좌번호', '환불계좌']
-                        if any(kw in page_text for kw in ready_keywords):
-                            self.log("✅ Page Ready! (예약 페이지 오픈 감지)")
-                            step1_success = True
-                            break
-                    except:
-                        pass
-                    
-                    # Fallback: 요소 즉시 감지
-                    try:
-                        elements = self.driver.find_elements(By.CSS_SELECTOR, "input[name='default_schedule_no'], .fishtype, #btn_payment, a.plus")
-                        if len(elements) > 0:
-                            self.log("✅ Page Ready! (요소 감지)")
-                            step1_success = True
-                            break
-                    except:
-                        pass
-                        
-            except Exception as e:
-                pass
-
-        if not step1_success:
-             self.log("❌ Failed to open reservation page.")
-
-        # ========== 4. 예약 정보 입력 단계 (멀티 브라우저 재시도 루프) ==========
-        while True:
-            if self.success_event.is_set():
-                self.log("🎉 예약 성공 감지! 종료합니다.")
-                break
-            
-            if len(self.browsers) > 0:
-                self.log(f"🌍 새 브라우저로 예약 페이지 접속 중: {url}")
-                self.driver.get(url)
-                try:
-                    alert = WebDriverWait(self.driver, 1).until(EC.alert_is_present())
-                    alert.accept()
-                except:
-                    pass
-                time.sleep(0.5)
-                
-            process_start_time = time.time()
-            
-            try:
-                # 4.1 낚시 종류 선택
-                self.log("🎣 낚시 종류 선택 중...")
-                target_keywords = ['갑오징어', '쭈꾸미', '쭈갑']
-                found_fish = False
-                
-                try:
-                    radios = self.driver.find_elements(By.CSS_SELECTOR, "input[type='radio'][name='default_schedule_no']")
-                    self.log(f"🔎 Found {len(radios)} fish type options")
-                    
-                    if len(radios) == 1:
-                        self.log("✨ 단일 어종만 있음, 자동 선택")
-                        self.driver.execute_script("arguments[0].click();", radios[0])
-                        found_fish = True
-                        time.sleep(0.01)
-                    elif len(radios) > 1:
-                        fish_spans = self.driver.find_elements(By.CSS_SELECTOR, "dt.fishtype span.fish")
-                        
-                        for keyword in target_keywords:
-                            if found_fish: break
-                            for fish_span in fish_spans:
-                                if keyword in fish_span.text:
-                                    self.log(f"✨ Found fish type: {keyword}")
-                                    try:
-                                        parent_dt = fish_span.find_element(By.XPATH, "./ancestor::dt[@class='fishtype']")
-                                        radio = parent_dt.find_element(By.CSS_SELECTOR, "input[type='radio'][name='default_schedule_no']")
-                                        self.driver.execute_script("arguments[0].click();", radio)
-                                        self.log(f"✅ Selected fish type: {keyword}")
-                                        time.sleep(0.01)
-                                        found_fish = True
-                                        break
-                                    except Exception as e:
-                                        self.log(f"⚠️ Failed to click radio for {keyword}: {e}")
-                        
-                        if not found_fish:
-                            self.log("⚠️ 키워드 매칭 없음, 첫번째 어종 선택")
-                            self.driver.execute_script("arguments[0].click();", radios[0])
-                            found_fish = True
-                            time.sleep(0.01)
-                except Exception as e:
-                    self.log(f"⚠️ Fishing type selection error: {e}")
-
-                # 4.2 좌석 선택 기능 확인
-                has_seat_selection = False
-                try:
-                    page_text = self.driver.find_element(By.TAG_NAME, "body").text
-                    if "자리선택" in page_text or "전체선택" in page_text:
-                        has_seat_selection = True
-                        self.log("📌 좌석 선택 기능 있음")
-                    else:
-                        self.log("📌 좌석 선택 기능 없음 (인원만 선택)")
-                except:
-                    self.log("⚠️ 좌석 선택 기능 확인 실패")
-
-                if has_seat_selection:
-                    self.log("📊 가용 좌석 파악 중...")
-                    available_checkboxes = self.driver.find_elements(By.CSS_SELECTOR, "input[name='select_seat_nos[]']")
-                    available_count = len(available_checkboxes)
-                    target_count = min(configured_count, available_count)
-                    self.log(f"📊 가용 좌석 수: {available_count}석, 설정 인원: {configured_count}명")
-                    
-                    if target_count == 0:
-                        self.log("❌ 가용 좌석이 없습니다!")
-                        continue
-
-                    self.log(f"👥 인원 선택 중... ({target_count}명)")
-                    try:
-                        plus_btn = self.driver.find_element(By.CSS_SELECTOR, "a.plus")
-                        for i in range(target_count):
-                            plus_btn.click()
-                            time.sleep(0.01)
-                        self.log(f"✅ 인원 {target_count}명 설정 완료")
-                    except Exception as e:
-                        self.log(f"⚠️ Person count selection error: {e}")
-                    
-                    self.log(f"💺 좌석 선택 중... ({target_count}석)")
-                    seat_priority = ['21', '23', '22', '24', '10', '20', '1', '11', '2', '9', '19']
-                    selected_seats = 0
-                    
-                    for seat_num in seat_priority:
-                        if selected_seats >= target_count:
-                            break
-                        try:
-                            checkbox_id = f"select_seat_nos_num_{seat_num}"
-                            checkbox = self.driver.find_element(By.ID, checkbox_id)
-                            if not checkbox.is_selected():
-                                self.driver.execute_script("arguments[0].click();", checkbox)
-                                selected_seats += 1
-                                time.sleep(0.01)
-                        except:
-                            continue
-                    
-                    if selected_seats < target_count:
-                        for checkbox in available_checkboxes:
-                            if selected_seats >= target_count:
-                                break
-                            try:
-                                if not checkbox.is_selected():
-                                    self.driver.execute_script("arguments[0].click();", checkbox)
-                                    selected_seats += 1
-                                    time.sleep(0.01)
-                            except:
-                                continue
-                    
-                    self.log(f"✅ 좌석 선택 완료! 총 {selected_seats}석")
-                else:
-                    self.log(f"👥 인원 선택 중... ({configured_count}명)")
-                    try:
-                        plus_btn = self.driver.find_element(By.CSS_SELECTOR, "a.plus")
-                        for i in range(configured_count):
-                            plus_btn.click()
-                            time.sleep(0.01)
-                        self.log(f"✅ 인원 {configured_count}명 설정 완료")
-                    except Exception as e:
-                        self.log(f"⚠️ Person count selection error: {e}")
-
-                # 4.5 예약자 정보 입력
-                self.log("✍️ 예약 정보 입력 중...")
-                try:
-                    name_input = self.driver.find_element(By.CSS_SELECTOR, "input[name='name']")
-                    name_input.clear()
-                    name_input.send_keys(user_name)
-                    self.log(f"✅ 예약자명 입력: {user_name}")
-                    time.sleep(0.01)
-                    
-                    try:
-                        deposit_input = self.driver.find_element(By.CSS_SELECTOR, "input[name='deposit_name']")
-                        if user_depositor and user_depositor != user_name:
-                            deposit_input.clear()
-                            deposit_input.send_keys(user_depositor)
-                            self.log(f"✅ 입금자명 입력: {user_depositor}")
-                            time.sleep(0.01)
-                    except: pass
-                    
-                    p1, p2, p3 = "", "", ""
-                    if "-" in user_phone: 
-                        parts = user_phone.split("-")
-                        p1, p2, p3 = parts if len(parts)==3 else ("","","")
-                    elif len(user_phone) == 11: 
-                        p1, p2, p3 = user_phone[:3], user_phone[3:7], user_phone[7:]
-                    
-                    if p2:
-                        phone2_input = self.driver.find_element(By.CSS_SELECTOR, "input[name='phone2']")
-                        phone2_input.send_keys(p2)
-                        time.sleep(0.01)
-                        phone3_input = self.driver.find_element(By.CSS_SELECTOR, "input[name='phone3']")
-                        phone3_input.send_keys(p3)
-                        self.log(f"✅ 전화번호 입력: {p2}-{p3}")
-                        time.sleep(0.01)
-                except Exception as e:
-                    self.log(f"⚠️ Info input error: {e}")
-
-                # 4.6 전체 동의 체크
-                try:
-                    all_check = self.driver.find_element(By.CSS_SELECTOR, "input[name='all_check']")
-                    if not all_check.is_selected():
-                        self.driver.execute_script("arguments[0].click();", all_check)
-                        self.log("✅ 전체 동의 체크")
-                except Exception as e:
-                    self.log(f"⚠️ All check error: {e}")
-
-                time.sleep(0.005)
-                
-                # 4.7 예약하기 버튼 클릭
-                self.log("🚀 예약하기 버튼 클릭...")
-                try:
-                    submit_btn = self.driver.find_element(By.CSS_SELECTOR, "#btn_payment, a.btn_payment")
-                    self.driver.execute_script("arguments[0].click();", submit_btn)
-                    
-                    try:
-                        alert = WebDriverWait(self.driver, 3).until(EC.alert_is_present())
-                        alert_text = alert.text
-                        self.log(f"🔔 Alert: {alert_text}")
-                        
-                        if not self.simulation_mode:
-                            alert.accept()
-                        else:
-                            self.log("🛑 시뮬레이션 모드: 알림창 확인 후 중단")
-                            return
-                    except:
-                        pass
-                    
-                    # 예약 성공 확인 (10초 폴링)
-                    self.log("🔍 예약 결과 확인 중 (최대 10초)...")
-                    check_start = time.time()
-                    success_detected = False
-                    
-                    while time.time() - check_start < 10:
-                        if self.success_event.is_set():
-                            self.log("🎉 다른 브라우저에서 예약 성공 감지! 종료합니다.")
-                            return
-                        
-                        if "reservation_detail" in self.driver.current_url:
-                            self.log("🎉 예약 성공! (URL: reservation_detail 감지)")
-                            self.success_event.set()
-                            success_detected = True
-                            break
-                        
-                        try:
-                            page_text = self.driver.page_source
-                            success_keywords = ['예약현황', '예약접수 완료!', '총 상품금액', '예약금']
-                            if any(kw in page_text for kw in success_keywords):
-                                self.log("🎉 예약 성공! (텍스트 확인)")
-                                self.success_event.set()
-                                success_detected = True
-                                break
-                        except:
-                            pass
-                        
-                        time.sleep(0.2)
-                    
-                    if success_detected:
-                        self.log("✅ 예약이 정상적으로 완료되었습니다!")
-                        try:
-                            elapsed_time = time.time() - process_start_time
-                            self.log(f"⏱️ 총 소요 시간: {elapsed_time:.2f}초")
-                        except: pass
-                        self.log("✅ 예약 봇 실행 시퀀스가 모두 완료되었습니다.")
-                        while True: time.sleep(1)
-                        return
-                    else:
-                        browser_count = len(self.browsers) + 1
-                        self.log(f"⏳ [브라우저{browser_count}] 10초 내 성공 확인 불가. 백그라운드 모니터링으로 전환...")
-                        
-                        old_driver = self.driver
-                        self.browsers.append(old_driver)
-                        
-                        t = threading.Thread(target=self.monitor_browser_for_success, args=(old_driver, browser_count))
-                        t.daemon = True
-                        t.start()
-                        self.browser_threads.append(t)
-                        
-                        if len(self.browsers) >= self.max_browsers:
-                            self.log(f"⚠️ 최대 브라우저 수({self.max_browsers}) 도달. 결과 대기 중...")
-                            while not self.success_event.is_set():
-                                time.sleep(0.5)
-                            self.log("🎉 예약 성공 감지! 종료합니다.")
-                            return
-                        
-                        self.log(f"🔄 새 브라우저 열고 재시도 ({len(self.browsers)+1}/{self.max_browsers})...")
-                        self.setup_driver()
-                        wait = WebDriverWait(self.driver, 30)
-                        continue
-                        
-                except Exception as e:
-                    self.log(f"⚠️ Submit error: {e}")
-                    continue
-
-            except Exception as e:
-                self.log(f"⚠️ Process Error: {e}")
-                continue
-
-        if not self.success_event.is_set() and self.browsers:
-            self.log("⏳ 모든 브라우저 결과 대기 중...")
-            while not self.success_event.is_set():
-                time.sleep(0.5)
-            self.log("🎉 예약 성공 감지!")
-        
-        self.log("✅ 예약 봇 실행 시퀀스가 모두 완료되었습니다.")
-        while True: time.sleep(1)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", required=True)
     args = parser.parse_args()
-    with open(args.config, 'r', encoding='utf-8') as f: config = json.load(f)
-    bot = TeamF1Bot(config)
-    try: bot.run()
-    except KeyboardInterrupt: bot.stop()
+
+    with open(args.config, 'r', encoding='utf-8') as f:
+        config = json.load(f)
+
+    bot = 팀에프원Bot(config)
+    try:
+        bot.run()
+    except KeyboardInterrupt:
+        bot.stop()
