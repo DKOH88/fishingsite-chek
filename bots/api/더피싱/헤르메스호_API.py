@@ -7,7 +7,7 @@ from base_api_bot import TheFishingAPIBot
 
 
 class 헤르메스호APIBot(TheFishingAPIBot):
-    BASE_URL = "https://hermes.thefishing.kr/_core/module/reservation_boat_v5.2_seat1"
+    BASE_URL = "http://hermes.thefishing.kr/_core/module/reservation_boat_v5.2_seat1"
     PA_N_UID = "5579"
     PROVIDER_NAME = "헤르메스호"
     RESERVATION_TYPE = "2step"  # popu2 방식
