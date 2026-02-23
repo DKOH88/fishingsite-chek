@@ -83,6 +83,15 @@ class TheFishingAPIBot:
         # 예약 타입 - 클래스 변수에서 복사 (서브클래스에서 오버라이드 가능)
         self.reservation_type = self.RESERVATION_TYPE
 
+        # HTTP → HTTPS 자동 업그레이드 (세션 유지를 위해 필수, 실패 시 HTTP 폴백)
+        if self.BASE_URL.startswith("http://"):
+            https_url = self.BASE_URL.replace("http://", "https://", 1)
+            try:
+                requests.head(https_url, timeout=3)
+                self.BASE_URL = https_url
+            except Exception:
+                pass  # HTTPS 불가 → 기존 HTTP 유지
+
         # 설정 로드
         self.load_config_from_file()
 
@@ -575,6 +584,51 @@ class TheFishingAPIBot:
                 log(f"⏩ [Step 1-3] 좌석 선택 비활성화 (HAS_SEAT_SELECTION=False)")
 
             # ─────────────────────────────────────────────────────────────
+            # Step 1.5: 인원/가격 AJAX (popup.step1.ajax.php)
+            # 브라우저에서 인원(BI_IN) 선택 시 호출되는 핵심 AJAX
+            # 이 호출이 PHP 세션에 가격 데이터를 기록함
+            # ─────────────────────────────────────────────────────────────
+            step_start = time.time()
+            bi_in_count = len(selected_seats) if selected_seats else final_seats_needed
+            log(f"📡 [Step 1.5] 인원/가격 AJAX 전송 (BI_IN={bi_in_count})...")
+
+            ajax_step1_url = f"{self.BASE_URL}/action/popup.step1.ajax.php"
+            ajax_data = f"date={date}&PA_N_UID={self.PA_N_UID}&PH_N_UID={ph_n_uid}&PS_N_UID={ps_uid}&BI_IN={bi_in_count}&BI_SO_IN=N&pay_method=&naun={naun}"
+
+            ye_display = ""
+            try:
+                session.headers.update({
+                    "X-Requested-With": "XMLHttpRequest",
+                    "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+                    "Referer": url_2,
+                })
+                resp_ajax = session.post(ajax_step1_url, data=ajax_data.encode('utf-8'), timeout=self.REQUEST_TIMEOUT)
+                ajax_text = resp_ajax.text.strip()
+                log(f"✅ 인원/가격 AJAX 응답: {ajax_text[:200]}")
+
+                ajax_parts = ajax_text.split("|^|")
+                if len(ajax_parts) >= 3:
+                    ye_display = ajax_parts[0]
+                    to_display = ajax_parts[1]
+                    bi_stat = ajax_parts[2]
+                    log(f"📊 가격: {ye_display}, 총액: {to_display}, 상태: {bi_stat}")
+
+                    if "초과" in bi_stat or "불가" in bi_stat:
+                        log(f"⚠️ 인원 초과/불가 응답: {bi_stat}")
+                        return "RETRY_FULL"
+                else:
+                    log(f"⚠️ 인원/가격 AJAX 응답 형식 이상 (무시하고 진행)")
+            except Exception as e:
+                log(f"⚠️ 인원/가격 AJAX 실패 (무시): {e}")
+            finally:
+                if "X-Requested-With" in session.headers:
+                    del session.headers["X-Requested-With"]
+                if "Content-Type" in session.headers:
+                    del session.headers["Content-Type"]
+
+            log(f"⏱️ [Step 1.5] 인원/가격 AJAX: {time.time() - step_start:.4f}초")
+
+            # ─────────────────────────────────────────────────────────────
             # Step 2: 페이로드 구성
             # ─────────────────────────────────────────────────────────────
             step_start = time.time()
@@ -624,6 +678,52 @@ class TheFishingAPIBot:
                 total_duration = time.time() - total_start_time
                 log(f"⏱️ [Total] 총 소요 시간(어종선택부터): {total_duration:.4f}초")
                 return True
+
+            # ─────────────────────────────────────────────────────────────
+            # Step 2.5: 가격 검증 AJAX (popup.step1.price.php)
+            # ─────────────────────────────────────────────────────────────
+            step_start = time.time()
+            log(f"📡 [Step 2.5] 가격 검증 AJAX 전송...")
+
+            if not ye_display:
+                ye_per_person = 0
+                price_matches = re.findall(r'([\d,]+)원', html_step1)
+                if price_matches:
+                    try:
+                        prices = [int(p.replace(',', '')) for p in price_matches if p.replace(',', '').isdigit()]
+                        prices = [p for p in prices if p >= 10000]
+                        if prices:
+                            ye_per_person = prices[0]
+                    except (ValueError, IndexError):
+                        pass
+                bi_in_count_price = len(selected_seats) if selected_seats else final_seats_needed
+                ye_total = ye_per_person * bi_in_count_price
+                ye_display = f"{ye_total:,}원"
+
+            buga_total = ""
+            buga_match = re.search(r'id="id_buga_total"[^>]*>([\d,]*)', html_step1)
+            if buga_match:
+                buga_total = buga_match.group(1)
+
+            price_url = f"{self.BASE_URL}/action/popup.step1.price.php"
+            price_data_str = f"ye={ye_display}&buga_total={buga_total}"
+
+            try:
+                session.headers.update({
+                    "X-Requested-With": "XMLHttpRequest",
+                    "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+                })
+                resp_price = session.post(price_url, data=price_data_str.encode('utf-8'), timeout=self.REQUEST_TIMEOUT)
+                log(f"✅ 가격 검증 완료: ye={ye_display}, buga_total={buga_total}, 응답={resp_price.text.strip()}")
+            except Exception as e:
+                log(f"⚠️ 가격 검증 AJAX 실패 (무시): {e}")
+            finally:
+                if "X-Requested-With" in session.headers:
+                    del session.headers["X-Requested-With"]
+                if "Content-Type" in session.headers:
+                    del session.headers["Content-Type"]
+
+            log(f"⏱️ [Step 2.5] 가격 검증: {time.time() - step_start:.4f}초")
 
             # ─────────────────────────────────────────────────────────────
             # Step 3: 예약 전송 (Action)
