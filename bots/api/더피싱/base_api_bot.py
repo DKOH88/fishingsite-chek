@@ -12,6 +12,7 @@ import time
 import requests
 import sys
 import json
+from urllib.parse import quote
 import os
 import io
 import argparse
@@ -817,6 +818,54 @@ class TheFishingAPIBot:
             log(f"⏩ [Step 1-3] 좌석 선택 비활성화 (HAS_SEAT_SELECTION=False)")
 
         # ─────────────────────────────────────────────────────────────
+        # Step 1.5: 인원/가격 AJAX (popup.step1.ajax.php)
+        # 브라우저에서 인원(BI_IN) 선택 시 호출되는 핵심 AJAX
+        # 이 호출이 PHP 세션에 가격 데이터를 기록함
+        # ─────────────────────────────────────────────────────────────
+        step_start = time.time()
+        bi_in_count = len(selected_seats) if selected_seats else final_seats_needed
+        log(f"📡 [Step 1.5] 인원/가격 AJAX 전송 (BI_IN={bi_in_count})...")
+
+        ajax_step1_url = f"{self.BASE_URL}/action/popup.step1.ajax.php"
+        ph_n_uid = info.get("PH_N_UID", "0")
+        ajax_data = f"date={date}&PA_N_UID={self.PA_N_UID}&PH_N_UID={ph_n_uid}&PS_N_UID={ps_uid}&BI_IN={bi_in_count}&BI_SO_IN=N&pay_method=&naun={naun}"
+
+        try:
+            session.headers.update({
+                "X-Requested-With": "XMLHttpRequest",
+                "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+                "Referer": url_2,
+            })
+            resp_ajax = session.post(ajax_step1_url, data=ajax_data.encode('utf-8'), timeout=self.REQUEST_TIMEOUT)
+            ajax_text = resp_ajax.text.strip()
+            log(f"✅ 인원/가격 AJAX 응답: {ajax_text[:200]}")
+
+            # 응답 파싱: "가격표시|^|총액표시|^|확인상태|^|좌석HTML"
+            ajax_parts = ajax_text.split("|^|")
+            if len(ajax_parts) >= 3:
+                ye_display = ajax_parts[0]   # e.g. "110,000원"
+                to_display = ajax_parts[1]   # e.g. "110,000원"
+                bi_stat = ajax_parts[2]      # "확인" or error status
+                log(f"📊 가격: {ye_display}, 총액: {to_display}, 상태: {bi_stat}")
+
+                if "초과" in bi_stat or "불가" in bi_stat:
+                    log(f"⚠️ 인원 초과/불가 응답: {bi_stat}")
+                    return "RETRY_FULL"
+            else:
+                ye_display = ""
+                log(f"⚠️ 인원/가격 AJAX 응답 형식 이상 (무시하고 진행)")
+        except Exception as e:
+            ye_display = ""
+            log(f"⚠️ 인원/가격 AJAX 실패 (무시): {e}")
+        finally:
+            if "X-Requested-With" in session.headers:
+                del session.headers["X-Requested-With"]
+            if "Content-Type" in session.headers:
+                del session.headers["Content-Type"]
+
+        log(f"⏱️ [Step 1.5] 인원/가격 AJAX: {time.time() - step_start:.4f}초")
+
+        # ─────────────────────────────────────────────────────────────
         # Step 2: 페이로드 구성
         # ─────────────────────────────────────────────────────────────
         step_start = time.time()
@@ -825,22 +874,24 @@ class TheFishingAPIBot:
         # 3단계용 link (popup.step2.php)
         module_path = self.BASE_URL.split('/module/')[-1] if '/module/' in self.BASE_URL else ""
 
+        # link를 브라우저와 동일하게 URL-인코딩
+        encoded_link = quote(f"/_core/module/{module_path}/popup.step2.php", safe='')
+
         payload = [
             ("action", "insert"),
-            ("link", f"/_core/module/{module_path}/popup.step2.php"),
+            ("link", encoded_link),
             ("temp_bi_stat", "확인"),
-            ("date", date),
             ("PA_N_UID", self.PA_N_UID),
-            ("PH_N_UID", ph_n_uid),
             ("PS_N_UID", ps_uid),
-            ("naun", naun),
             ("BI_IN", str(len(selected_seats) if selected_seats else final_seats_needed)),
             ("BI_NAME", info["BI_NAME"]),
+            ("BI_BANK", info.get("BI_BANK", "")),
             ("BI_TEL1", "010"),
             ("BI_TEL2", info["BI_TEL2"]),
             ("BI_TEL3", info["BI_TEL3"]),
-            ("BI_BANK", info.get("BI_BANK", "")),
             ("BI_MEMO", ""),
+            ("agree", "Y"),
+            ("BI_3JA", "1"),
             ("BI_AD", "1"),
             ("all_agree", "Y"),
         ]
@@ -864,6 +915,56 @@ class TheFishingAPIBot:
             total_duration = time.time() - total_start_time
             log(f"⏱️ [Total] 총 소요 시간(어종선택부터): {total_duration:.4f}초")
             return True
+
+        # ─────────────────────────────────────────────────────────────
+        # Step 2.5: 가격 검증 AJAX (브라우저 form_check → popup_price)
+        # Step 1.5에서 세션에 기록된 가격을 검증하는 보조 호출
+        # ─────────────────────────────────────────────────────────────
+        step_start = time.time()
+        log(f"📡 [Step 2.5] 가격 검증 AJAX 전송...")
+
+        # ye_display는 Step 1.5에서 서버가 반환한 가격 문자열 사용
+        # Step 1.5 실패 시 HTML에서 파싱
+        if not ye_display:
+            ye_per_person = 0
+            price_matches = re.findall(r'([\d,]+)원', html_step1)
+            if price_matches:
+                try:
+                    prices = [int(p.replace(',', '')) for p in price_matches if p.replace(',', '').isdigit()]
+                    prices = [p for p in prices if p >= 10000]
+                    if prices:
+                        ye_per_person = prices[0]
+                except (ValueError, IndexError):
+                    pass
+            bi_in_count_price = len(selected_seats) if selected_seats else final_seats_needed
+            ye_total = ye_per_person * bi_in_count_price
+            ye_display = f"{ye_total:,}원"
+
+        # 부가금 파싱
+        buga_total = ""
+        buga_match = re.search(r'id="id_buga_total"[^>]*>([\d,]*)', html_step1)
+        if buga_match:
+            buga_total = buga_match.group(1)
+
+        price_url = f"{self.BASE_URL}/action/popup.step1.price.php"
+        price_data_str = f"ye={ye_display}&buga_total={buga_total}"
+
+        try:
+            session.headers.update({
+                "X-Requested-With": "XMLHttpRequest",
+                "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+            })
+            resp_price = session.post(price_url, data=price_data_str.encode('utf-8'), timeout=self.REQUEST_TIMEOUT)
+            log(f"✅ 가격 검증 완료: ye={ye_display}, buga_total={buga_total}, 응답={resp_price.text.strip()}")
+        except Exception as e:
+            log(f"⚠️ 가격 검증 AJAX 실패 (무시): {e}")
+        finally:
+            if "X-Requested-With" in session.headers:
+                del session.headers["X-Requested-With"]
+            if "Content-Type" in session.headers:
+                del session.headers["Content-Type"]
+
+        log(f"⏱️ [Step 2.5] 가격 검증: {time.time() - step_start:.4f}초")
 
         # ─────────────────────────────────────────────────────────────
         # Step 3: 첫 번째 예약 전송 (popup.step1.action.php)
@@ -923,6 +1024,16 @@ class TheFishingAPIBot:
 
             log(f"✅ Step 2 페이지 로드: Status={res2_page.status_code}, Size={len(res2_page.text)}bytes")
 
+            # 디버그: Step 2 HTML 저장 + 쿠키 로깅
+            try:
+                debug_path = os.path.join(os.path.dirname(__file__), f"debug_step2_{self.PROVIDER_NAME}.html")
+                with open(debug_path, "w", encoding="utf-8") as f:
+                    f.write(res2_page.text)
+                log(f"🔍 [디버그] Step 2 HTML 저장: {debug_path}")
+            except Exception:
+                pass
+            log(f"🍪 [디버그] 세션 쿠키: {dict(session.cookies)}")
+
             step2_html = res2_page.text
             if "STEP 02" in step2_html or "예약확인" in step2_html or "예약2단계" in step2_html:
                 log(f"✅ Step 2 페이지 확인됨! (예약확인 단계)")
@@ -938,29 +1049,44 @@ class TheFishingAPIBot:
             log(f"📡 [Step 4] POST 두 번째 예약 전송...")
             log(f"🔗 URL: {url_step2_action}")
 
-            # Step 2 폼 데이터 파싱
+            # Step 2 페이로드: <form> 안의 필드만 파싱 (페이지 전체 X)
             soup_step2 = BeautifulSoup(res2_page.text, "html.parser")
             payload_step2 = []
 
-            for hidden in soup_step2.find_all("input", {"type": "hidden"}):
-                name = hidden.get("name")
-                value = hidden.get("value", "")
-                if name:
-                    payload_step2.append((name, value))
+            # step2.action을 타겟으로 하는 form 찾기
+            target_form = None
+            for form in soup_step2.find_all("form"):
+                form_action = form.get("action", "")
+                if "step2.action" in form_action or "step2" in form_action:
+                    target_form = form
+                    break
+            if not target_form:
+                # form을 못 찾으면 첫 번째 form 사용
+                target_form = soup_step2.find("form")
 
-            for textarea in soup_step2.find_all("textarea"):
-                name = textarea.get("name")
-                value = textarea.get_text() or ""
-                if name:
-                    payload_step2.append((name, value))
+            if target_form:
+                # form 내부의 input만 파싱
+                for inp in target_form.find_all("input"):
+                    name = inp.get("name")
+                    if not name:
+                        continue
+                    inp_type = inp.get("type", "text").lower()
+                    if inp_type in ("submit", "button", "image", "reset"):
+                        continue
+                    payload_step2.append((name, inp.get("value", "")))
+
+                # form 내부의 textarea 파싱
+                for textarea in target_form.find_all("textarea"):
+                    name = textarea.get("name")
+                    if name:
+                        payload_step2.append((name, textarea.get_text() or ""))
 
             if not any(p[0] == "action" for p in payload_step2):
                 payload_step2.append(("action", "update"))
 
-            # link를 step3로 설정
-            payload_step2 = [p for p in payload_step2 if p[0] != "link"]
-            encoded_link_step3 = f"/_core/module/{module_path}/popup.step3.php"
-            payload_step2.append(("link", encoded_link_step3))
+            log(f"📋 [Step 4] 페이로드 항목 수: {len(payload_step2)}개")
+            for k, v in payload_step2:
+                log(f"  📌 {k}={v}")
 
             session.headers.update({"Referer": url_step2})
             res2 = session.post(url_step2_action, data=payload_step2, timeout=self.REQUEST_TIMEOUT)
@@ -978,8 +1104,8 @@ class TheFishingAPIBot:
 
             # 에러 체크
             if "예약할 수 없습니다" in response_text2 or "관리자에게 문의" in response_text2:
-                log("⚠️ [Step 4] 세션 에러! 예약 데이터가 서버에 없음")
-                return "RETRY_FULL"
+                log("🛑 [Step 4] 예약 불가 에러 - 봇 정지")
+                return True  # 봇 정지 (성공 처리로 루프 탈출)
             if "정상적으로 예약해 주십시오" in response_text2:
                 log("⚠️ [Step 4] 오류! 처음부터 다시 시도 필요")
                 return "RETRY_FULL"
@@ -1057,8 +1183,8 @@ class TheFishingAPIBot:
             else:
                 t_date_fmt = t_date
 
-            # 테스트/시뮬레이션 모드일 때 파일명에 [TestMode] 접두사
-            mode_prefix = "[TestMode]_" if (self.test_mode_skip_wait or self.dry_run) else ""
+            # 시뮬레이션 모드일 때만 파일명에 [TestMode] 접두사
+            mode_prefix = "[TestMode]_" if self.dry_run else ""
 
             log_file = os.path.join(log_dir, f"{mode_prefix}{time_str}_더피싱_{p_provider}_{t_date_fmt}_.txt")
             _log_file_path = log_file
