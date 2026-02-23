@@ -1024,16 +1024,6 @@ class TheFishingAPIBot:
 
             log(f"✅ Step 2 페이지 로드: Status={res2_page.status_code}, Size={len(res2_page.text)}bytes")
 
-            # 디버그: Step 2 HTML 저장 + 쿠키 로깅
-            try:
-                debug_path = os.path.join(os.path.dirname(__file__), f"debug_step2_{self.PROVIDER_NAME}.html")
-                with open(debug_path, "w", encoding="utf-8") as f:
-                    f.write(res2_page.text)
-                log(f"🔍 [디버그] Step 2 HTML 저장: {debug_path}")
-            except Exception:
-                pass
-            log(f"🍪 [디버그] 세션 쿠키: {dict(session.cookies)}")
-
             step2_html = res2_page.text
             if "STEP 02" in step2_html or "예약확인" in step2_html or "예약2단계" in step2_html:
                 log(f"✅ Step 2 페이지 확인됨! (예약확인 단계)")
