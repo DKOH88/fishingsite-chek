@@ -16,7 +16,7 @@ from urllib.parse import quote
 import os
 import io
 import argparse
-from datetime import datetime
+from datetime import datetime, timedelta
 from bs4 import BeautifulSoup
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
@@ -71,6 +71,7 @@ class TheFishingAPIBot:
         self.test_mode = False
         self.dry_run = False
         self.test_mode_skip_wait = False
+        self.early_monitor = False
         self.reservations_plan = {}
 
         # 로그용 설정 저장
@@ -129,6 +130,11 @@ class TheFishingAPIBot:
                 else:
                     self.test_mode = False
                     self.dry_run = False
+
+                # early_monitor: 조기오픈 감시 (5분전부터 10초마다 HTTP로 오픈 여부 확인)
+                if config.get('early_monitor', False):
+                    self.early_monitor = True
+                    log("🔍 [조기오픈 감시] 활성화됨")
 
                 # 2. 런처에서 직접 전달된 값 확인 (temp_config 방식)
                 target_date = config.get('target_date', '')
@@ -248,7 +254,9 @@ class TheFishingAPIBot:
     # Time Management
     # =========================================================================
     def wait_until_target_time(self, target_time_str):
-        """목표 시간까지 대기 (마일스톤 기반 알림)"""
+        """목표 시간까지 대기 (마일스톤 기반 알림 + 조기오픈 감시)
+        Returns: 조기오픈 감지 시 HTML 응답 텍스트, 아니면 None
+        """
         # 시간 문자열 정규화 (04:3:29 -> 04:03:29)
         parts = target_time_str.split(':')
         if len(parts) == 3:
@@ -266,7 +274,7 @@ class TheFishingAPIBot:
         # 이미 지난 시간이면 즉시 시작
         if datetime.now() >= target:
             log(f"⏰ 타겟 시간 {target_time_str} 이미 경과 - 즉시 시작!")
-            return
+            return None
 
         log(f"⏰ 타겟 시간: {target_time_str}")
         log(f"현재 시간: {now.strftime('%H:%M:%S')}")
@@ -275,6 +283,13 @@ class TheFishingAPIBot:
         initial_remaining = (target - now).total_seconds()
         init_mins, init_secs = divmod(initial_remaining, 60)
         log(f"⏳ 남은 시간: {int(init_mins)}분 {int(init_secs)}초")
+
+        # 조기오픈 감시 설정
+        early_monitor_start = target - timedelta(minutes=5)
+        last_early_check = None
+
+        if self.early_monitor:
+            log(f"🔍 조기오픈 감시 활성화: {early_monitor_start.strftime('%H:%M:%S')}부터 10초마다 HTTP 확인")
 
         # 마일스톤 알림 플래그 (이미 지난 마일스톤은 건너뛰기)
         notified_1min = initial_remaining <= 60
@@ -296,6 +311,40 @@ class TheFishingAPIBot:
 
             remaining = (target - now).total_seconds()
 
+            # ── 조기오픈 감시: 5분 전부터 10초마다 HTTP로 오픈 여부 확인 ──
+            if self.early_monitor and now >= early_monitor_start:
+                should_check = False
+                if last_early_check is None:
+                    should_check = True
+                elif (now - last_early_check).total_seconds() >= 10:
+                    should_check = True
+
+                if should_check:
+                    last_early_check = now
+                    try:
+                        # 첫 번째 예약 날짜로 오픈 체크
+                        first_date = next(iter(self.reservations_plan), None)
+                        if first_date:
+                            step1_file = "popu2.step1.php" if self.reservation_type == "2step" else "popup.step1.php"
+                            url_check = f"{self.BASE_URL}/{step1_file}?date={first_date}&PA_N_UID={self.PA_N_UID}"
+                            session = self.build_session()
+                            r = session.get(url_check, timeout=3)
+
+                            open_keywords = ['PS_N_UID', 'STEP 01', '예약1단계', 'ps_selis']
+                            closed_keywords = ['준비 중', '오픈 예정', '예약 불가', '접수 마감', '없는', '권한', '잘못']
+
+                            is_open = any(kw in r.text for kw in open_keywords)
+                            is_closed = any(kw in r.text for kw in closed_keywords)
+
+                            if is_open and not is_closed:
+                                log(f"🎉🎉🎉 조기 오픈 감지! 예약 페이지가 열렸습니다!")
+                                log(f"   (예정: {target.strftime('%H:%M:%S')}, 실제: {now.strftime('%H:%M:%S')}, {remaining:.0f}초 일찍 오픈)")
+                                return r.text  # 오픈 감지 HTML 반환 → Phase 1 스킵용
+                            else:
+                                log(f"🔍 조기오픈 체크: 아직 미오픈 (남은시간: {int(remaining)}초)")
+                    except Exception as e:
+                        log(f"⚠️ 조기오픈 체크 오류: {e}")
+
             # 마일스톤 알림
             if remaining <= 60 and not notified_1min:
                 log(f"⏳ 1분 전!")
@@ -314,6 +363,8 @@ class TheFishingAPIBot:
                     notified_countdown[sec] = True
 
             time.sleep(0.05)  # 정밀도를 위해 0.05초 간격
+
+        return None  # 정상 시간 도달 (조기오픈 아님)
 
     # =========================================================================
     # Helper Functions (Regex Only - Faster)
@@ -441,32 +492,36 @@ class TheFishingAPIBot:
     # =========================================================================
     # Main Reservation Function
     # =========================================================================
-    def do_reservation(self, session, date, job):
-        """예약 실행"""
+    def do_reservation(self, session, date, job, initial_html=None):
+        """예약 실행 (initial_html: 오픈 감지 시 이미 받은 HTML → Step 1-1 스킵)"""
         info = job["person_info"]
         seats_needed = job["seats"]
         ph_n_uid = info.get("PH_N_UID", "0")
 
-        # ─────────────────────────────────────────────────────────────
-        # Step 1-1: 초기 페이지 로드 (어종 목록 파악)
-        # ─────────────────────────────────────────────────────────────
-        step_start = time.time()
         url_1 = f"{self.BASE_URL}/popu2.step1.php?date={date}&PA_N_UID={self.PA_N_UID}"
-        log(f"📡 [Step 1-1] GET 요청 전송...")
-        log(f"🔗 URL: {url_1}")
 
-        session.headers.update({"Referer": url_1})
-        r = session.get(url_1, timeout=self.REQUEST_TIMEOUT)
-
-        step_duration = time.time() - step_start
-        log(f"✅ 응답 수신: Status={r.status_code}, Size={len(r.text)}bytes")
-        log(f"⏱️ [Step 1-1] 초기 로드 완료: {step_duration:.4f}초")
+        # ─────────────────────────────────────────────────────────────
+        # Step 1-1: 초기 페이지 로드 (오픈 감지 응답 재활용 시 스킵)
+        # ─────────────────────────────────────────────────────────────
+        if initial_html:
+            log(f"⚡ [Step 1-1] 오픈 감지 응답 재활용 (GET 스킵!)")
+            html_for_parsing = initial_html
+        else:
+            step_start = time.time()
+            log(f"📡 [Step 1-1] GET 요청 전송...")
+            log(f"🔗 URL: {url_1}")
+            session.headers.update({"Referer": url_1})
+            r = session.get(url_1, timeout=self.REQUEST_TIMEOUT)
+            step_duration = time.time() - step_start
+            log(f"✅ 응답 수신: Status={r.status_code}, Size={len(r.text)}bytes")
+            log(f"⏱️ [Step 1-1] 초기 로드 완료: {step_duration:.4f}초")
+            html_for_parsing = r.text
 
         # ─────────────────────────────────────────────────────────────
         # Step 1-1-2: 어종 파싱
         # ─────────────────────────────────────────────────────────────
         parse_start = time.time()
-        ps_uid = self.find_ps_n_uid(r.text, self.SEARCH_KEYWORDS)
+        ps_uid = self.find_ps_n_uid(html_for_parsing, self.SEARCH_KEYWORDS)
         parse_duration = time.time() - parse_start
 
         if not ps_uid:
@@ -485,6 +540,8 @@ class TheFishingAPIBot:
         # ─────────────────────────────────────────────────────────────
         MAX_SEAT_RETRIES = 5  # 좌석 재파싱 최대 시도
         original_seats_needed = seats_needed  # 원본 저장
+        price_ajax_done = False  # Step 1.5 완료 플래그 (재시도 시 스킵용)
+        cached_ye_display = ""   # Step 1.5 응답 캐시
 
         for seat_retry in range(MAX_SEAT_RETRIES):
             if seat_retry > 0:
@@ -585,48 +642,54 @@ class TheFishingAPIBot:
 
             # ─────────────────────────────────────────────────────────────
             # Step 1.5: 인원/가격 AJAX (popup.step1.ajax.php)
-            # 브라우저에서 인원(BI_IN) 선택 시 호출되는 핵심 AJAX
-            # 이 호출이 PHP 세션에 가격 데이터를 기록함
+            # 재시도 시 세션에 이미 가격 데이터가 있으므로 스킵
             # ─────────────────────────────────────────────────────────────
-            step_start = time.time()
             bi_in_count = len(selected_seats) if selected_seats else final_seats_needed
-            log(f"📡 [Step 1.5] 인원/가격 AJAX 전송 (BI_IN={bi_in_count})...")
+            ye_display = cached_ye_display
 
-            ajax_step1_url = f"{self.BASE_URL}/action/popup.step1.ajax.php"
-            ajax_data = f"date={date}&PA_N_UID={self.PA_N_UID}&PH_N_UID={ph_n_uid}&PS_N_UID={ps_uid}&BI_IN={bi_in_count}&BI_SO_IN=N&pay_method=&naun={naun}"
+            if not price_ajax_done:
+                step_start = time.time()
+                log(f"📡 [Step 1.5] 인원/가격 AJAX 전송 (BI_IN={bi_in_count})...")
 
-            ye_display = ""
-            try:
-                session.headers.update({
-                    "X-Requested-With": "XMLHttpRequest",
-                    "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
-                    "Referer": url_2,
-                })
-                resp_ajax = session.post(ajax_step1_url, data=ajax_data.encode('utf-8'), timeout=self.REQUEST_TIMEOUT)
-                ajax_text = resp_ajax.text.strip()
-                log(f"✅ 인원/가격 AJAX 응답: {ajax_text[:200]}")
+                ajax_step1_url = f"{self.BASE_URL}/action/popup.step1.ajax.php"
+                ajax_data = f"date={date}&PA_N_UID={self.PA_N_UID}&PH_N_UID={ph_n_uid}&PS_N_UID={ps_uid}&BI_IN={bi_in_count}&BI_SO_IN=N&pay_method=&naun={naun}"
 
-                ajax_parts = ajax_text.split("|^|")
-                if len(ajax_parts) >= 3:
-                    ye_display = ajax_parts[0]
-                    to_display = ajax_parts[1]
-                    bi_stat = ajax_parts[2]
-                    log(f"📊 가격: {ye_display}, 총액: {to_display}, 상태: {bi_stat}")
+                try:
+                    session.headers.update({
+                        "X-Requested-With": "XMLHttpRequest",
+                        "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+                        "Referer": url_2,
+                    })
+                    resp_ajax = session.post(ajax_step1_url, data=ajax_data.encode('utf-8'), timeout=self.REQUEST_TIMEOUT)
+                    ajax_text = resp_ajax.text.strip()
+                    log(f"✅ 인원/가격 AJAX 응답: {ajax_text[:200]}")
 
-                    if "초과" in bi_stat or "불가" in bi_stat:
-                        log(f"⚠️ 인원 초과/불가 응답: {bi_stat}")
-                        return "RETRY_FULL"
-                else:
-                    log(f"⚠️ 인원/가격 AJAX 응답 형식 이상 (무시하고 진행)")
-            except Exception as e:
-                log(f"⚠️ 인원/가격 AJAX 실패 (무시): {e}")
-            finally:
-                if "X-Requested-With" in session.headers:
-                    del session.headers["X-Requested-With"]
-                if "Content-Type" in session.headers:
-                    del session.headers["Content-Type"]
+                    ajax_parts = ajax_text.split("|^|")
+                    if len(ajax_parts) >= 3:
+                        ye_display = ajax_parts[0]
+                        to_display = ajax_parts[1]
+                        bi_stat = ajax_parts[2]
+                        log(f"📊 가격: {ye_display}, 총액: {to_display}, 상태: {bi_stat}")
 
-            log(f"⏱️ [Step 1.5] 인원/가격 AJAX: {time.time() - step_start:.4f}초")
+                        if "초과" in bi_stat or "불가" in bi_stat:
+                            log(f"⚠️ 인원 초과/불가 응답: {bi_stat}")
+                            return "RETRY_FULL"
+
+                        price_ajax_done = True
+                        cached_ye_display = ye_display
+                    else:
+                        log(f"⚠️ 인원/가격 AJAX 응답 형식 이상 (무시하고 진행)")
+                except Exception as e:
+                    log(f"⚠️ 인원/가격 AJAX 실패 (무시): {e}")
+                finally:
+                    if "X-Requested-With" in session.headers:
+                        del session.headers["X-Requested-With"]
+                    if "Content-Type" in session.headers:
+                        del session.headers["Content-Type"]
+
+                log(f"⏱️ [Step 1.5] 인원/가격 AJAX: {time.time() - step_start:.4f}초")
+            else:
+                log(f"⚡ [Step 1.5] 세션 캐시 사용 (스킵! BI_IN={bi_in_count})")
 
             # ─────────────────────────────────────────────────────────────
             # Step 2: 페이로드 구성
@@ -679,51 +742,7 @@ class TheFishingAPIBot:
                 log(f"⏱️ [Total] 총 소요 시간(어종선택부터): {total_duration:.4f}초")
                 return True
 
-            # ─────────────────────────────────────────────────────────────
-            # Step 2.5: 가격 검증 AJAX (popup.step1.price.php)
-            # ─────────────────────────────────────────────────────────────
-            step_start = time.time()
-            log(f"📡 [Step 2.5] 가격 검증 AJAX 전송...")
-
-            if not ye_display:
-                ye_per_person = 0
-                price_matches = re.findall(r'([\d,]+)원', html_step1)
-                if price_matches:
-                    try:
-                        prices = [int(p.replace(',', '')) for p in price_matches if p.replace(',', '').isdigit()]
-                        prices = [p for p in prices if p >= 10000]
-                        if prices:
-                            ye_per_person = prices[0]
-                    except (ValueError, IndexError):
-                        pass
-                bi_in_count_price = len(selected_seats) if selected_seats else final_seats_needed
-                ye_total = ye_per_person * bi_in_count_price
-                ye_display = f"{ye_total:,}원"
-
-            buga_total = ""
-            buga_match = re.search(r'id="id_buga_total"[^>]*>([\d,]*)', html_step1)
-            if buga_match:
-                buga_total = buga_match.group(1)
-
-            price_url = f"{self.BASE_URL}/action/popup.step1.price.php"
-            price_data_str = f"ye={ye_display}&buga_total={buga_total}"
-
-            try:
-                session.headers.update({
-                    "X-Requested-With": "XMLHttpRequest",
-                    "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
-                })
-                resp_price = session.post(price_url, data=price_data_str.encode('utf-8'), timeout=self.REQUEST_TIMEOUT)
-                log(f"✅ 가격 검증 완료: ye={ye_display}, buga_total={buga_total}, 응답={resp_price.text.strip()}")
-            except Exception as e:
-                log(f"⚠️ 가격 검증 AJAX 실패 (무시): {e}")
-            finally:
-                if "X-Requested-With" in session.headers:
-                    del session.headers["X-Requested-With"]
-                if "Content-Type" in session.headers:
-                    del session.headers["Content-Type"]
-
-            log(f"⏱️ [Step 2.5] 가격 검증: {time.time() - step_start:.4f}초")
+            # Step 2.5 가격 검증 AJAX 제거 (클라이언트 사이드 검증 → 서버 불필요)
 
             # ─────────────────────────────────────────────────────────────
             # Step 3: 예약 전송 (Action)
@@ -759,9 +778,8 @@ class TheFishingAPIBot:
                         return "RETRY_FULL"  # 전체 재시도 (외부로 반환)
 
                     elif any(kw in response_text for kw in ["이미", "불가능", "선점", "마감", "없습니다", "예약할 수 없습니다"]):
-                        log("⚠️ [결과] 좌석 선점 실패 - 잔여석 재파싱 후 재시도")
-                        time.sleep(0.05)
-                        continue  # 루프 계속 (Step 1-2부터 재시작)
+                        log("⚠️ [결과] 좌석 선점 실패 - 잔여석 재파싱 후 즉시 재시도")
+                        continue  # 루프 계속 (Step 1-2부터 재시작, sleep 제거)
 
                     else:
                         log("⚠️ [결과] 예상 밖 응답 - 재파싱 후 재시도")
@@ -774,8 +792,21 @@ class TheFishingAPIBot:
                     continue  # 다시 시도
 
             except requests.exceptions.Timeout:
-                log(f"❌ [타임아웃] 서버 응답 없음 - 재파싱 후 재시도")
-                continue  # 루프 계속
+                log(f"⚠️ [타임아웃] 서버 응답 없음 - 예약 완료 여부 확인 중...")
+                try:
+                    url_check = f"{self.BASE_URL}/popu2.step2.php"
+                    res_check = session.get(url_check, timeout=10)
+                    if "예약" in res_check.text and ("완료" in res_check.text or "step2" in res_check.text.lower()):
+                        log("🎉 [타임아웃] 예약 성공 확인! (중복 방지)")
+                        total_duration = time.time() - total_start_time
+                        log(f"⏱️ [Total] 총 소요 시간(어종선택부터): {total_duration:.4f}초")
+                        return True  # 2step은 여기서 종료 (Step 4 없음)
+                    else:
+                        log("❌ [타임아웃] 미완료 → 재파싱 후 재시도")
+                        continue
+                except Exception:
+                    log("❌ [타임아웃] 확인 실패 → 재파싱 후 재시도")
+                    continue
             except requests.exceptions.ConnectionError:
                 log(f"❌ [연결실패] 서버 연결 불가")
                 return "RETRY_FULL"
@@ -790,36 +821,40 @@ class TheFishingAPIBot:
     # =========================================================================
     # 3단계 예약 (popup.step1 → popup.step2 → popup.step3)
     # =========================================================================
-    def do_reservation_3step(self, session, date, job):
-        """3단계 예약 실행 (popup 방식 - v5.1)"""
+    def do_reservation_3step(self, session, date, job, initial_html=None):
+        """3단계 예약 실행 (popup 방식 - v5.1, initial_html: 오픈 감지 응답 재활용)"""
         info = job["person_info"]
         seats_needed = job["seats"]
         ph_n_uid = info.get("PH_N_UID", "0")
 
-        # ─────────────────────────────────────────────────────────────
-        # Step 1-1: 초기 페이지 로드 (어종 목록 파악)
-        # ─────────────────────────────────────────────────────────────
-        step_start = time.time()
         url_1 = f"{self.BASE_URL}/popup.step1.php?date={date}&PA_N_UID={self.PA_N_UID}"
-        log(f"📡 [Step 1-1] GET 요청 전송...")
-        log(f"🔗 URL: {url_1}")
 
-        session.headers.update({"Referer": url_1})
         # 3단계는 일반 Form Submit이므로 XMLHttpRequest 헤더 제거
         if "X-Requested-With" in session.headers:
             del session.headers["X-Requested-With"]
 
-        r = session.get(url_1, timeout=self.REQUEST_TIMEOUT)
-
-        step_duration = time.time() - step_start
-        log(f"✅ 응답 수신: Status={r.status_code}, Size={len(r.text)}bytes")
-        log(f"⏱️ [Step 1-1] 초기 로드 완료: {step_duration:.4f}초")
+        # ─────────────────────────────────────────────────────────────
+        # Step 1-1: 초기 페이지 로드 (오픈 감지 응답 재활용 시 스킵)
+        # ─────────────────────────────────────────────────────────────
+        if initial_html:
+            log(f"⚡ [Step 1-1] 오픈 감지 응답 재활용 (GET 스킵!)")
+            html_for_parsing = initial_html
+        else:
+            step_start = time.time()
+            log(f"📡 [Step 1-1] GET 요청 전송...")
+            log(f"🔗 URL: {url_1}")
+            session.headers.update({"Referer": url_1})
+            r = session.get(url_1, timeout=self.REQUEST_TIMEOUT)
+            step_duration = time.time() - step_start
+            log(f"✅ 응답 수신: Status={r.status_code}, Size={len(r.text)}bytes")
+            log(f"⏱️ [Step 1-1] 초기 로드 완료: {step_duration:.4f}초")
+            html_for_parsing = r.text
 
         # ─────────────────────────────────────────────────────────────
         # Step 1-1-2: 어종 파싱
         # ─────────────────────────────────────────────────────────────
         parse_start = time.time()
-        ps_uid = self.find_ps_n_uid(r.text, self.SEARCH_KEYWORDS)
+        ps_uid = self.find_ps_n_uid(html_for_parsing, self.SEARCH_KEYWORDS)
         parse_duration = time.time() - parse_start
 
         if not ps_uid:
@@ -1016,55 +1051,7 @@ class TheFishingAPIBot:
             log(f"⏱️ [Total] 총 소요 시간(어종선택부터): {total_duration:.4f}초")
             return True
 
-        # ─────────────────────────────────────────────────────────────
-        # Step 2.5: 가격 검증 AJAX (브라우저 form_check → popup_price)
-        # Step 1.5에서 세션에 기록된 가격을 검증하는 보조 호출
-        # ─────────────────────────────────────────────────────────────
-        step_start = time.time()
-        log(f"📡 [Step 2.5] 가격 검증 AJAX 전송...")
-
-        # ye_display는 Step 1.5에서 서버가 반환한 가격 문자열 사용
-        # Step 1.5 실패 시 HTML에서 파싱
-        if not ye_display:
-            ye_per_person = 0
-            price_matches = re.findall(r'([\d,]+)원', html_step1)
-            if price_matches:
-                try:
-                    prices = [int(p.replace(',', '')) for p in price_matches if p.replace(',', '').isdigit()]
-                    prices = [p for p in prices if p >= 10000]
-                    if prices:
-                        ye_per_person = prices[0]
-                except (ValueError, IndexError):
-                    pass
-            bi_in_count_price = len(selected_seats) if selected_seats else final_seats_needed
-            ye_total = ye_per_person * bi_in_count_price
-            ye_display = f"{ye_total:,}원"
-
-        # 부가금 파싱
-        buga_total = ""
-        buga_match = re.search(r'id="id_buga_total"[^>]*>([\d,]*)', html_step1)
-        if buga_match:
-            buga_total = buga_match.group(1)
-
-        price_url = f"{self.BASE_URL}/action/popup.step1.price.php"
-        price_data_str = f"ye={ye_display}&buga_total={buga_total}"
-
-        try:
-            session.headers.update({
-                "X-Requested-With": "XMLHttpRequest",
-                "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
-            })
-            resp_price = session.post(price_url, data=price_data_str.encode('utf-8'), timeout=self.REQUEST_TIMEOUT)
-            log(f"✅ 가격 검증 완료: ye={ye_display}, buga_total={buga_total}, 응답={resp_price.text.strip()}")
-        except Exception as e:
-            log(f"⚠️ 가격 검증 AJAX 실패 (무시): {e}")
-        finally:
-            if "X-Requested-With" in session.headers:
-                del session.headers["X-Requested-With"]
-            if "Content-Type" in session.headers:
-                del session.headers["Content-Type"]
-
-        log(f"⏱️ [Step 2.5] 가격 검증: {time.time() - step_start:.4f}초")
+        # Step 2.5 가격 검증 AJAX 제거 (클라이언트 사이드 검증 → 서버 불필요)
 
         # ─────────────────────────────────────────────────────────────
         # Step 3: 첫 번째 예약 전송 (popup.step1.action.php)
@@ -1179,7 +1166,7 @@ class TheFishingAPIBot:
                 log(f"  📌 {k}={v}")
 
             session.headers.update({"Referer": url_step2})
-            res2 = session.post(url_step2_action, data=payload_step2, timeout=self.REQUEST_TIMEOUT)
+            res2 = session.post(url_step2_action, data=payload_step2, timeout=(3, 15))  # Step 4는 넉넉하게 15초
             http_duration = time.time() - step_start
 
             log(f"✅ 응답 수신: Status={res2.status_code}, Size={len(res2.text)}bytes")
@@ -1201,8 +1188,22 @@ class TheFishingAPIBot:
                 return "RETRY_FULL"
 
         except requests.exceptions.Timeout:
-            log(f"❌ [Step 4] 타임아웃!")
-            return "RETRY_FULL"
+            log(f"⚠️ [Step 4] 타임아웃! 예약 완료 여부 확인 중...")
+            try:
+                url_step3 = f"{self.BASE_URL}/popup.step3.php"
+                res_check = session.get(url_step3, timeout=10)
+                success_indicators = ["완료", "성공", "예약이 완료", "신청이 완료"]
+                if any(ind in res_check.text for ind in success_indicators):
+                    log("🎉 [Step 4] 타임아웃이었지만 예약은 성공! (중복 방지)")
+                    total_duration = time.time() - total_start_time
+                    log(f"⏱️ [Total] 총 소요 시간: {total_duration:.4f}초")
+                    return True
+                else:
+                    log("❌ [Step 4] 예약 미완료 확인 → 재시도")
+                    return "RETRY_FULL"
+            except Exception:
+                log("❌ [Step 4] 확인 실패 → 재시도")
+                return "RETRY_FULL"
         except requests.exceptions.ConnectionError:
             log(f"❌ [Step 4] 연결 실패!")
             return "RETRY_FULL"
@@ -1317,8 +1318,9 @@ class TheFishingAPIBot:
             log(f"🪑 좌석 우선순위: {self.SEAT_PRIORITY[:5]}...")
 
         # Test Mode면 시간 대기 건너뛰기
+        early_open_html = None
         if not self.test_mode_skip_wait:
-            self.wait_until_target_time(self.target_time)
+            early_open_html = self.wait_until_target_time(self.target_time)
         else:
             log("⏩ [Test Mode] 시간 대기를 건너뜁니다!")
 
@@ -1339,83 +1341,95 @@ class TheFishingAPIBot:
                 # ─────────────────────────────────────────────────────────
                 # Phase 1: 예약 오픈 대기 (서버 안정화 대기)
                 # ─────────────────────────────────────────────────────────
-                open_retry = 0
-                MAX_OPEN_RETRIES = 10000  # 약 30~40분 재시도 (10000 * 0.2초)
+                open_html = None
 
-                # 예약 타입에 따른 URL 설정
-                step1_file = "popu2.step1.php" if self.reservation_type == "2step" else "popup.step1.php"
+                # 조기오픈 감지 HTML이 있으면 Phase 1 스킵
+                if early_open_html and total_attempts == 1:
+                    log(f"⚡ 조기오픈 감지 HTML 재활용 → Phase 1 스킵!")
+                    open_html = early_open_html
+                    early_open_html = None  # 첫 시도에만 사용
+                else:
+                    open_retry = 0
+                    MAX_OPEN_RETRIES = 10000  # 약 30~40분 재시도 (10000 * 0.2초)
 
-                while open_retry < MAX_OPEN_RETRIES:
-                    open_retry += 1
-                    try:
-                        url_check = f"{self.BASE_URL}/{step1_file}?date={date}&PA_N_UID={self.PA_N_UID}"
-                        session.headers.update({"Referer": f"{self.BASE_URL}/{step1_file}"})
-                        r = session.get(url_check, timeout=3)
+                    # 예약 타입에 따른 URL 설정
+                    step1_file = "popu2.step1.php" if self.reservation_type == "2step" else "popup.step1.php"
 
-                        # ✅ 성공: 예약 페이지 오픈 감지
-                        if "PS_N_UID" in r.text or "STEP 01" in r.text or "예약1단계" in r.text:
-                            break
+                    while open_retry < MAX_OPEN_RETRIES:
+                        open_retry += 1
+                        try:
+                            url_check = f"{self.BASE_URL}/{step1_file}?date={date}&PA_N_UID={self.PA_N_UID}"
+                            session.headers.update({"Referer": f"{self.BASE_URL}/{step1_file}"})
+                            r = session.get(url_check, timeout=3)
 
-                        # ⚠️ 에러: 502 Bad Gateway
-                        if r.status_code == 502:
-                            log(f"⚠️ [502] 서버 오류. 재시도... ({open_retry}/{MAX_OPEN_RETRIES})")
-                            time.sleep(0.1)
-                            continue
+                            # ✅ 성공: 예약 페이지 오픈 감지
+                            if "PS_N_UID" in r.text or "STEP 01" in r.text or "예약1단계" in r.text:
+                                open_html = r.text
+                                break
 
-                        # ⚠️ 에러: 503 Service Unavailable
-                        if r.status_code == 503:
-                            log(f"⚠️ [503] 서비스 불가. 재시도... ({open_retry}/{MAX_OPEN_RETRIES})")
-                            time.sleep(0.1)
-                            continue
+                            # ⚠️ 에러: 502 Bad Gateway
+                            if r.status_code == 502:
+                                log(f"⚠️ [502] 서버 오류. 재시도... ({open_retry}/{MAX_OPEN_RETRIES})")
+                                time.sleep(0.05)
+                                continue
 
-                        # ⚠️ 에러: 리다이렉트 에러
-                        if "waitingrequest" in r.url or "ERR_TOO_MANY_REDIRECTS" in r.text:
-                            log(f"⚠️ 리다이렉트 에러! 세션 재생성... ({open_retry}/{MAX_OPEN_RETRIES})")
-                            session = self.build_session()  # 세션 재생성
-                            time.sleep(0.1)
-                            continue
+                            # ⚠️ 에러: 503 Service Unavailable
+                            if r.status_code == 503:
+                                log(f"⚠️ [503] 서비스 불가. 재시도... ({open_retry}/{MAX_OPEN_RETRIES})")
+                                time.sleep(0.05)
+                                continue
 
-                        # ⚠️ 에러: 페이지 에러 (없는/권한/잘못)
-                        error_keywords = ['없는', '권한', '잘못', '예약할 수 없', '존재하지']
-                        matched_errors = [err for err in error_keywords if err in r.text]
-                        if matched_errors:
-                            # 응답 내용 일부 추출 (100자)
-                            error_preview = r.text.strip()[:100].replace('\n', ' ')
-                            log(f"⚠️ 에러 페이지 감지 [{matched_errors[0]}]: {error_preview}... ({open_retry}/{MAX_OPEN_RETRIES})")
-                            time.sleep(0.1)
-                            continue
+                            # ⚠️ 에러: 리다이렉트 에러
+                            if "waitingrequest" in r.url or "ERR_TOO_MANY_REDIRECTS" in r.text:
+                                log(f"⚠️ 리다이렉트 에러! 세션 재생성... ({open_retry}/{MAX_OPEN_RETRIES})")
+                                session = self.build_session()  # 세션 재생성
+                                time.sleep(0.05)
+                                continue
 
-                        # 아직 오픈 안됨
-                        log(f"⏳ 오픈 대기 중... ({open_retry})")
+                            # ⚠️ 에러: 페이지 에러 (없는/권한/잘못)
+                            error_keywords = ['없는', '권한', '잘못', '예약할 수 없', '존재하지']
+                            matched_errors = [err for err in error_keywords if err in r.text]
+                            if matched_errors:
+                                # 응답 내용 일부 추출 (100자)
+                                error_preview = r.text.strip()[:100].replace('\n', ' ')
+                                log(f"⚠️ 에러 페이지 감지 [{matched_errors[0]}]: {error_preview}... ({open_retry}/{MAX_OPEN_RETRIES})")
+                                time.sleep(0.05)
+                                continue
 
-                    except requests.exceptions.Timeout:
-                        log(f"⚠️ 타임아웃! 재시도... ({open_retry}/{MAX_OPEN_RETRIES})")
-                    except requests.exceptions.ConnectionError:
-                        log(f"⚠️ 연결 실패! 세션 재생성... ({open_retry}/{MAX_OPEN_RETRIES})")
-                        session = self.build_session()
-                    except Exception as e:
-                        log(f"⚠️ 예외: {e} ({open_retry}/{MAX_OPEN_RETRIES})")
+                            # 아직 오픈 안됨
+                            log(f"⏳ 오픈 대기 중... ({open_retry})")
 
-                    time.sleep(0.1)
+                        except requests.exceptions.Timeout:
+                            log(f"⚠️ 타임아웃! 재시도... ({open_retry}/{MAX_OPEN_RETRIES})")
+                        except requests.exceptions.ConnectionError:
+                            log(f"⚠️ 연결 실패! 세션 재생성... ({open_retry}/{MAX_OPEN_RETRIES})")
+                            session = self.build_session()
+                        except Exception as e:
+                            log(f"⚠️ 예외: {e} ({open_retry}/{MAX_OPEN_RETRIES})")
 
-                if open_retry >= MAX_OPEN_RETRIES:
-                    log("❌ 오픈 대기 최대 재시도 초과!")
-                    continue
+                        time.sleep(0.05)
+
+                    if open_retry >= MAX_OPEN_RETRIES:
+                        log("❌ 오픈 대기 최대 재시도 초과!")
+                        continue
 
                 # ─────────────────────────────────────────────────────────
                 # Phase 2: 예약 실행 (재시도 포함)
                 # ─────────────────────────────────────────────────────────
+
                 for job in jobs:
                     MAX_RESERVATION_RETRIES = 3
 
                     for res_attempt in range(MAX_RESERVATION_RETRIES):
                         try:
                             log(f"✨ 예약 오픈 감지! (예약 시도 {res_attempt + 1}/{MAX_RESERVATION_RETRIES})")
+                            # 첫 시도만 오픈 감지 HTML 재활용, 재시도 시에는 새로 GET
+                            use_html = open_html if res_attempt == 0 else None
                             # 예약 타입에 따라 다른 메서드 호출
                             if self.reservation_type == "3step":
-                                result = self.do_reservation_3step(session, date, job)
+                                result = self.do_reservation_3step(session, date, job, initial_html=use_html)
                             else:
-                                result = self.do_reservation(session, date, job)
+                                result = self.do_reservation(session, date, job, initial_html=use_html)
 
                             if result == True:
                                 # 성공!

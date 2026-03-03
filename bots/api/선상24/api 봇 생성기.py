@@ -49,6 +49,7 @@ class SunSang24BotGeneratorGUI:
 
         # ID 매핑 데이터
         self.id_mapping_data = {}
+        self.dynamic_mapping_mode = False  # 맵핑없음(동적 조회) 모드
 
         # 선사명 목록 (조회용)
         self.ship_names_found = set()
@@ -263,7 +264,10 @@ class SunSang24BotGeneratorGUI:
         self.end_day_entry.set("31")
 
         # 생성 버튼
-        ttk.Button(manual_grid, text="🔢 수동 매핑 생성", command=self.generate_id_mapping, bootstyle="secondary", width=18).grid(row=0, column=6, rowspan=2, sticky=W, padx=20)
+        btn_frame = ttk.Frame(manual_grid)
+        btn_frame.grid(row=0, column=6, rowspan=2, sticky=W, padx=20)
+        ttk.Button(btn_frame, text="🔢 수동 매핑 생성", command=self.generate_id_mapping, bootstyle="secondary", width=18).pack(pady=(0, 5))
+        ttk.Button(btn_frame, text="🔄 맵핑없음 (동적 조회)", command=self.set_no_mapping, bootstyle="warning-outline", width=18).pack()
 
         # 매핑 미리보기
         ttk.Label(mapping_frame, text="ID 매핑 미리보기:", font=("맑은 고딕", 9)).pack(anchor=W, pady=(10, 5))
@@ -434,6 +438,9 @@ class SunSang24BotGeneratorGUI:
                     month, day, id_val = int(match.group(1)), int(match.group(2)), int(match.group(3))
                     self.id_mapping_data[(month, day)] = id_val
 
+                # 빈 매핑이면 동적 조회 모드로 인식
+                self.dynamic_mapping_mode = len(self.id_mapping_data) == 0
+
                 self.update_mapping_preview()
 
             self.update_preview()
@@ -484,6 +491,7 @@ class SunSang24BotGeneratorGUI:
         self.lookup_yearmonth_entry.insert(0, "2026")
         self.lookup_result_var.set("")
         self.id_mapping_data = {}
+        self.dynamic_mapping_mode = False
         self.mapping_preview.delete("1.0", tk.END)
         self.preview_text.delete("1.0", tk.END)
         self.preview_text.insert("1.0", "# 선사명, SUBDOMAIN, BASE_URL, ID_MAPPING을 입력해주세요.")
@@ -705,6 +713,7 @@ class SunSang24BotGeneratorGUI:
 
             # ID 매핑 데이터 저장
             self.id_mapping_data = {}
+            self.dynamic_mapping_mode = False  # 자동 조회 시 동적 모드 해제
             for key in sorted_keys:
                 date_str, ship_name = key
                 schedule_no = filtered_ids[key]
@@ -746,6 +755,14 @@ class SunSang24BotGeneratorGUI:
             import traceback
             traceback.print_exc()
 
+    def set_no_mapping(self):
+        """맵핑없음 (동적 조회) 모드 설정"""
+        self.id_mapping_data = {}
+        self.dynamic_mapping_mode = True
+        self.update_mapping_preview()
+        self.update_preview()
+        self.status_var.set("🔄 동적 조회 모드 설정 완료! (예약 오픈 시 schedule_fleet에서 자동 파싱)")
+
     def generate_id_mapping(self):
         """ID 매핑 생성 (수동)"""
         try:
@@ -763,6 +780,7 @@ class SunSang24BotGeneratorGUI:
 
             # 매핑 생성
             self.id_mapping_data = {}
+            self.dynamic_mapping_mode = False  # 수동 매핑 시 동적 모드 해제
             current_id = start_id
             year = 2026  # 기본 연도
 
@@ -792,7 +810,13 @@ class SunSang24BotGeneratorGUI:
         self.mapping_preview.delete("1.0", tk.END)
 
         if not self.id_mapping_data:
-            self.mapping_preview.insert("1.0", "# ID 매핑을 생성해주세요.")
+            if self.dynamic_mapping_mode:
+                self.mapping_preview.insert("1.0",
+                    "# 🔄 동적 조회 모드 (ID_MAPPING = {})\n"
+                    "# 예약 오픈 시 schedule_fleet 페이지에서 자동으로 스케줄 ID를 파싱합니다.\n"
+                    "# ID가 비공개인 선사(피크닉호 등)에 사용합니다.")
+            else:
+                self.mapping_preview.insert("1.0", "# ID 매핑을 생성해주세요.")
             return
 
         # 모든 매핑 표시
@@ -835,11 +859,17 @@ class SunSang24BotGeneratorGUI:
         # ID 매핑 문자열 생성
         mapping_str = self.generate_mapping_string()
 
+        # 패턴 설명
+        if self.dynamic_mapping_mode:
+            mapping_desc = "동적 조회 (오픈 시 자동 파싱)"
+        else:
+            mapping_desc = "매핑 있음"
+
         # 코드 생성
         code = f'''# -*- coding: utf-8 -*-
 """
 {provider} API 봇 (선상24)
-패턴: 매핑 있음 + 자리선택 {'활성화' if has_seat else '비활성화'}
+패턴: {mapping_desc} + 자리선택 {'활성화' if has_seat else '비활성화'}
 """
 from base_api_bot import SunSang24APIBot
 
@@ -876,6 +906,8 @@ if __name__ == "__main__":
     def generate_mapping_string(self):
         """ID 매핑 문자열 생성 (코드용)"""
         if not self.id_mapping_data:
+            if self.dynamic_mapping_mode:
+                return "        # 동적 조회 모드: 예약 오픈 시 schedule_fleet에서 자동 파싱"
             return "        # ID 매핑을 생성해주세요"
 
         lines = []
@@ -945,7 +977,7 @@ if __name__ == "__main__":
         if not self.base_url_entry.get().strip():
             messagebox.showerror("오류", "BASE_URL을 입력해주세요.")
             return False
-        if not self.id_mapping_data:
+        if not self.id_mapping_data and not self.dynamic_mapping_mode:
             messagebox.showerror("오류", "ID 매핑을 생성해주세요.")
             return False
         return True

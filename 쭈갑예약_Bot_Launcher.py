@@ -144,20 +144,24 @@ SUNSANG24_SITES = {
 PORTS = {
     "오천항": {
         "가즈아호": "선상24/가즈아호_Bot.py",
+        "가즈아호(API)": "api/선상24/가즈아호_API.py",
         "금땡이호": "더피싱/금땡이호_Bot.py",
         "금땡이호(API)": "api/더피싱/금땡이호_API.py",
         "꽃돼지호": None,
+        "꽃돼지호(API)": "api/선상24/꽃돼지호_API.py",
         "나폴리호": "더피싱/나폴리호_Bot.py",
         "나폴리호(API)": "api/더피싱/나폴리호_API.py",
         "뉴성령호": "더피싱/뉴성령호_Bot.py",
         "뉴찬스호(선)": "더피싱/뉴찬스호_Bot.py",
         "도지호": "선상24/도지호_Bot.py",
         "도지호(API)": "api/선상24/도지호_API.py",
+        "라라호(API)": "api/더피싱/라라호_API.py",
         "바이트호": "더피싱/바이트호_Bot.py",
         "바이트호(API)": "api/더피싱/바이트호_API.py",
         "범블비호": "더피싱/범블비호_Bot.py",
         "범블비호(API)": "api/더피싱/범블비호_API.py",
         "블루호": "더피싱/블루호_Bot.py",
+        "블루호(API)": "api/더피싱/블루호_API.py",
         "비엔나호": "더피싱/비엔나호_Bot.py",
         "비엔나호(API)": "api/비엔나호_API.py",
         "빅보스호": "선상24/빅보스호_Bot.py",
@@ -170,21 +174,19 @@ PORTS = {
         "오디세이호": "더피싱/오디세이호_Bot.py",
         "오디세이호(API)": "api/더피싱/오디세이호_API.py",
         "유진호": "더피싱/유진호_Bot.py",
+        "유진호(API)": "api/더피싱/유진호_API.py",
         "자이언트호": "선상24/자이언트호_Bot.py",
         "카즈미호": "더피싱/카즈미호_Bot.py",
         "카즈미호(API)": "api/더피싱/카즈미호_API.py",
         "캡틴호": "더피싱/캡틴호_Bot.py",
         "캡틴호(API)": "api/더피싱/캡틴호_API.py",
         "프랜드호": "더피싱/프랜드호_Bot.py",
+        "프랜드호(API)": "api/더피싱/프랜드호_API.py",
         "프린스호": "선상24/프린스호_Bot.py",
         "호랭이호": "선상24/호랭이호_Bot.py",
         "호랭이호(API)": "api/선상24/호랭이호_API.py",
-        "유진호(API)": "api/더피싱/유진호_API.py",
-        "프랜드호(API)": "api/더피싱/프랜드호_API.py",
-        "블루호(API)": "api/더피싱/블루호_API.py",
-        "가즈아호(API)": "api/선상24/가즈아호_API.py",
-        "라라호(API)": "api/더피싱/라라호_API.py",
-        "라라호test호(API)": "api/더피싱/라라호test호_API.py",
+        "흑돼지호(API)": "api/더피싱/흑돼지호_API.py",
+        "자이언트호(API)": "api/선상24/자이언트호_API.py",
     },
     "안흥·신진항": {
         "골드피싱호": "더피싱/안흥골드피싱호_Bot.py",
@@ -207,28 +209,30 @@ PORTS = {
         "퀸블레스호(API)": "api/더피싱/퀸블레스호_API.py",
         "킹스타호": None,
         "행운호": "더피싱/행운호_Bot.py",
+        "뉴신정호(API)": "api/더피싱/뉴신정호_API.py",
     },
     "영흥도": {
         "god호(선)": "더피싱/지오디호_Bot.py",
+        "금강7호(API)": "api/더피싱/금강7호_API.py",
         "루키나 2호(선)": "선상24/루키나 2호_Bot.py",
         "루키나호(선)": "선상24/루키나호_Bot.py",
         "만수피싱호": "더피싱/만수피싱호_Bot.py",
         "스타피싱호(선)": "더피싱/스타피싱호_Bot.py",
         "아라호(선)": "더피싱/아라호_Bot.py",
         "아이리스호(선)": "더피싱/아이리스호_Bot.py",
+        "야호(API)": "api/더피싱/야호_API.py",
         "야호(선)": "더피싱/야호_Bot.py",
+        "지오디호(API)": "api/더피싱/지오디호_API.py",
         "짱구호(선)": "더피싱/짱구호_Bot.py",
         "크루즈호": "더피싱/크루즈호_Bot.py",
         "팀만수호(API)": "api/더피싱/팀만수호_API.py",
         "팀만수호(선)": "더피싱/팀만수호_Bot.py",
         "팀에프원호": "선상24/팀에프원_Bot.py",
-        "팀에프투호": "선상24/팀에프투_Bot.py",
-        "페라리호(선)": "더피싱/페라리호_Bot.py",
-        "지오디호(API)": "api/더피싱/지오디호_API.py",
-        "야호(API)": "api/더피싱/야호_API.py",
         "팀에프원호(API)": "api/선상24/팀에프원_API.py",
-        "팀에프투호(API)": "api/선상24/팀에프투_API.py",
+        "팀에프투호": "선상24/팀에프투_Bot.py",
         "팀에프투호(API)": "api/선상24/팀에프투호_API.py",
+        "페라리호(선)": "더피싱/페라리호_Bot.py",
+        "영동2호(API)": "api/더피싱/영동2호_API.py",
     },
     "삼길포항": {
         "(신)블루오션호(API)": "api/더피싱/(신)블루오션호_API.py",
@@ -258,6 +262,7 @@ PORTS = {
         "아이언호": "선상24/아이언호_Bot.py",
         "아인스호": "더피싱/아인스호_Bot.py",
         "야야호": "더피싱/야야호_Bot.py",
+        "야야호(API)": "api/더피싱/야야호_API.py",
         "양파호": "더피싱/양파호_Bot.py",
         "양파호(API)": "api/더피싱/양파호_API.py",
         "예린호(API)": "api/더피싱/예린호_API.py",
@@ -268,14 +273,14 @@ PORTS = {
         "팀루피호(API)": "api/더피싱/팀루피호_API.py",
         "하이피싱호": "더피싱/하이피싱호_Bot.py",
         "하이피싱호(API)": "api/더피싱/하이피싱호_API.py",
-        "야야호(API)": "api/더피싱/야야호_API.py",
+        "기가호(API)": "api/선상24/기가호_API.py",
     },
     "마검포항": {
         "❌ 가가호": "선상24/가가호_Bot.py",
         "팀바이트호": "더피싱/팀바이트호_Bot.py",
-        "하와이호(선)": "더피싱/하와이호_Bot.py",
         "팀바이트호(API)": "api/더피싱/팀바이트호_API.py",
         "하와이호(API)": "api/더피싱/하와이호_API.py",
+        "하와이호(선)": "더피싱/하와이호_Bot.py",
     },
     "무창포항": {
         "가가호": "선상24/가가호_Bot.py",
@@ -284,6 +289,7 @@ PORTS = {
         "페가수스호(API)": "api/페가수스_API.py",
         "헤라호": "더피싱/헤라호_Bot.py",
         "헤라호(API)": "api/더피싱/헤라호_API.py",
+        "수지호(API)": "api/더피싱/수지호_API.py",
     },
     "영목항": {
         "❌ 청광호": "더피싱/청광호_Bot.py",
@@ -309,6 +315,9 @@ PORTS = {
         "장현호": "더피싱/장현호_Bot.py",
         "장현호(API)": "api/장현호_API.py",
         "장현호2": "더피싱/장현호2_Bot.py",
+        "피크닉호(API)": "api/선상24/피크닉호_API.py",
+        "정환호(API)": "api/선상24/정환호_API.py",
+        "동백호(API)": "api/선상24/동백호_API.py",
     },
     "대야도": {
         "❌ 아일랜드호(선)": "더피싱/아일랜드호_Bot.py",
@@ -316,6 +325,7 @@ PORTS = {
     },
     "백사장항": {
         "영차호": "더피싱/영차호_Bot.py",
+        "무야호(API)": "api/선상24/무야호_API.py",
     },
     "여수": {
         "오션스타1호": "선상24/오션스타1호_Bot.py",
@@ -326,16 +336,20 @@ PORTS = {
         "E.스마일호": "선상24/E.스마일_Bot.py",
     },
     "평택항": {
+        "빅스타호(API)": "api/더피싱/빅스타호_API.py",
         "오닉스호": "더피싱/오닉스호_Bot.py",
         "오닉스호(API)": "api/더피싱/오닉스호_API.py",
         "제우스호(API)": "api/더피싱/제우스호_API.py",
-        "빅스타호(API)": "api/더피싱/빅스타호_API.py",
+        "평택항피싱호(API)": "api/더피싱/평택항피싱호_API.py",
     },
     "전곡항": {
+        "(전곡항)빅보스호(API)": "api/선상24/(전곡항)빅보스호_API.py",
         "제비호": "선상24/제비호_Bot.py",
+        "뉴신명호(API)": "api/더피싱/뉴신명호_API.py",
     },
     "홍원항": {
         "조커호": "더피싱/조커호_Bot.py",
+        "블랙호(API)": "api/더피싱/블랙호_API.py",
     },
 }
 
@@ -437,11 +451,11 @@ class FishingLauncher:
 
         # Test Mode - Row 3
         self.var_test_mode = tk.BooleanVar()
-        ttk.Checkbutton(self.lf_config, text="🚀 Test Mode (시간 무시/즉시 실행)", variable=self.var_test_mode, bootstyle="success-round-toggle").grid(row=3, column=0, columnspan=2, sticky=W, padx=5, pady=5)
+        ttk.Checkbutton(self.lf_config, text="🚀 즉시실행 모드(실행시간 무시)", variable=self.var_test_mode, bootstyle="success-round-toggle").grid(row=3, column=0, columnspan=2, sticky=W, padx=5, pady=5)
 
         # Simulation Mode - Row 4
         self.var_sim_mode = tk.BooleanVar()
-        ttk.Checkbutton(self.lf_config, text="🚫 예약 실행 안함 (시뮬레이션 모드)", variable=self.var_sim_mode, bootstyle="warning-round-toggle").grid(row=4, column=0, columnspan=2, sticky=W, padx=5, pady=5)
+        ttk.Checkbutton(self.lf_config, text="🚫 시뮬레이션 모드(예약실행 안함)", variable=self.var_sim_mode, bootstyle="warning-round-toggle").grid(row=4, column=0, columnspan=2, sticky=W, padx=5, pady=5)
 
         # Save Button - Row 5
         btn_frame_row5 = ttk.Frame(self.lf_config)
