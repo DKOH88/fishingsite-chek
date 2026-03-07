@@ -50,7 +50,7 @@ class NaverCafeMonitorGUI:
         self.root.title("🔔 네이버 카페 양도게시판 모니터")
         
         # 창 크기 및 화면 중앙 위치
-        win_width, win_height = 650, 700
+        win_width, win_height = 900, 700
         screen_width = self.root.winfo_screenwidth()
         screen_height = self.root.winfo_screenheight()
         x = (screen_width - win_width) // 2
@@ -88,9 +88,13 @@ class NaverCafeMonitorGUI:
         # 트레이 아이콘 관련
         self.tray_icon = None
         self.is_hidden = False
-        
+
         # 윈도우 종료 시 처리
         self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
+
+        # 최소화 버튼 → 트레이로 숨기기
+        if TRAY_AVAILABLE:
+            self.root.bind('<Unmap>', self._on_minimize)
         
         # 선택된 월 (기본: 9월)
         self.selected_month = 9
@@ -500,7 +504,7 @@ class NaverCafeMonitorGUI:
         cal_win.title(f"📅 {month}월 날짜 선택")
         
         # 창 크기 및 화면 중앙 위치
-        win_width, win_height = 270, 300
+        win_width, win_height = 330, 400
         screen_width = cal_win.winfo_screenwidth()
         screen_height = cal_win.winfo_screenheight()
         x = (screen_width - win_width) // 2
@@ -993,29 +997,16 @@ class NaverCafeMonitorGUI:
             return start_mins <= current_mins <= end_mins
     
     # ========== 트레이 숨김 기능 ==========
-    def get_console_window(self):
-        """콘솔 창 핸들 가져오기"""
-        return ctypes.windll.kernel32.GetConsoleWindow()
-    
     def hide_console(self):
-        """콘솔 창 숨기기"""
-        hwnd = self.get_console_window()
-        if hwnd:
-            ctypes.windll.user32.ShowWindow(hwnd, 0)
-            try:
-                ctypes.windll.kernel32.FreeConsole()
-            except:
-                pass
-    
-    def show_console(self):
-        """콘솔 창 보이기"""
+        """콘솔 완전 분리 (창 + 작업표시줄 모두 제거)"""
         try:
-            ctypes.windll.kernel32.AllocConsole()
-        except:
+            ctypes.windll.kernel32.FreeConsole()
+        except Exception:
             pass
-        hwnd = self.get_console_window()
-        if hwnd:
-            ctypes.windll.user32.ShowWindow(hwnd, 5)
+
+    def show_console(self):
+        """콘솔 불필요 (GUI 로그창 사용)"""
+        pass
     
     def create_tray_icon_image(self):
         """트레이 아이콘 이미지 생성 (녹색 - 카페 모니터)"""
@@ -1027,6 +1018,11 @@ class NaverCafeMonitorGUI:
         draw.text((24, 16), "C", fill="white")
         return img
     
+    def _on_minimize(self, event):
+        """최소화 버튼 클릭 시 트레이로 숨기기"""
+        if event.widget == self.root and self.root.state() == 'iconic':
+            self.root.after(10, self.hide_to_tray)
+
     def hide_to_tray(self):
         """트레이로 숨기기"""
         if not TRAY_AVAILABLE:
@@ -1094,5 +1090,11 @@ class NaverCafeMonitorGUI:
 
 
 if __name__ == "__main__":
+    # 콘솔 창 즉시 제거 (GUI 앱이므로 콘솔 불필요)
+    try:
+        ctypes.windll.kernel32.FreeConsole()
+    except Exception:
+        pass
+
     app = NaverCafeMonitorGUI()
     app.run()

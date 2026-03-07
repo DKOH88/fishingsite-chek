@@ -45,23 +45,53 @@ SUMMARY_INTERVAL_SECONDS = 4 * 3600  # 종합 알람 간격: 4시간
 NIGHT_BREAK_START_RANGE = (-10, 5)   # 랜덤 시작: 23:50 ~ 00:05
 NIGHT_BREAK_END_RANGE = (50, 65)     # 랜덤 종료: 06:50 ~ 07:05
 
-# UI 색상 상수
-COLOR_ACTIVE = '#4CAF50'             # 녹색 (활성/선택)
-COLOR_DANGER = '#F44336'             # 빨간색 (자동예약)
-COLOR_DEFAULT_BG = 'SystemButtonFace'
-COLOR_DEFAULT_FG = 'black'
-COLOR_WHITE = 'white'
+# ============================================
+# DESIGN TOKENS (ttkbootstrap "darkly" 테마 정렬)
+# ============================================
+
+# -- Spacing (8px grid) --
+SP_XS, SP_SM, SP_MD, SP_LG, SP_XL = 2, 4, 8, 12, 16
+
+# -- Typography --
+FONT_FAMILY, FONT_MONO = '맑은 고딕', 'Consolas'
+FONT_SIZE_SM, FONT_SIZE_MD, FONT_SIZE_LG = 9, 10, 12
+
+# -- Theme-aligned colors (darkly palette) --
+CLR_BG_SURFACE = '#2f2f2f'
+CLR_FG         = '#ffffff'
+CLR_FG_MUTED   = '#ADB5BD'
+CLR_SUCCESS    = '#00bc8c'   # darkly success
+CLR_DANGER     = '#e74c3c'   # darkly danger
+CLR_WARNING    = '#f39c12'   # darkly warning
+CLR_INFO       = '#3498db'   # darkly info
+CLR_SECONDARY  = '#444444'   # darkly secondary
 
 # 보트 모드 → (배경색, 전경색) 매핑
 MODE_COLORS = {
-    'monitor': (COLOR_ACTIVE, COLOR_WHITE),   # 모니터링만
-    'reserve': (COLOR_DANGER, COLOR_WHITE),   # 자동예약
-    'off':     (COLOR_DEFAULT_BG, COLOR_DEFAULT_FG),
+    'monitor': (CLR_SUCCESS, CLR_FG),
+    'reserve': (CLR_DANGER, CLR_FG),
+    'off':     (CLR_SECONDARY, CLR_FG_MUTED),
 }
 
-def _toggle_colors(is_active: bool):
-    """토글 버튼 (bg, fg) 반환: 활성=녹색, 비활성=기본"""
-    return MODE_COLORS['monitor' if is_active else 'off']
+# Log 색상
+CLR_LOG_BG        = '#1a1a2e'
+CLR_LOG_FG        = '#e0e0e0'
+CLR_LOG_TIMESTAMP = '#888888'
+CLR_LOG_SUCCESS   = '#00bc8c'
+CLR_LOG_ERROR     = '#e74c3c'
+CLR_LOG_WARNING   = '#f39c12'
+CLR_LOG_INFO      = '#3498db'
+
+# 보트 모드 → ttk.Style 이름 매핑
+BOAT_STYLE_MAP = {
+    'monitor': 'Monitor.TButton',
+    'reserve': 'Reserve.TButton',
+    'off':     'Off.TButton',
+}
+
+def _toggle_style(is_active: bool, prefix: str = 'Platform') -> str:
+    """토글 버튼 스타일 이름 반환"""
+    return f'{prefix}Active.TButton' if is_active else f'{prefix}Inactive.TButton'
 
 # 플랫폼 config 키 (load_config, save/load_preset, refresh_boat_grid 등에서 공용)
 PLATFORM_KEYS = ('thefishing_boats', 'sunsang24_boats')
@@ -201,85 +231,106 @@ class CalendarPopup:
         self.popup.grab_set()
         
         # 창 위치 (부모 창 중앙)
-        w, h = 350, 320
+        w, h = 400, 450
         x = parent.winfo_rootx() + (parent.winfo_width() // 2) - (w // 2)
         y = parent.winfo_rooty() + (parent.winfo_height() // 2) - (h // 2)
         self.popup.geometry(f'{w}x{h}+{x}+{y}')
         
         self.create_widgets()
     
+    # ── Canvas 기반 캘린더 (ttkbootstrap 테마 영향 완전 차단) ──
+    CELL_W, CELL_H = 48, 34
+    COLS = 7
+    BG_CANVAS = '#1a1a2e'
+    CLR_SEL_BG = '#00bc8c'
+    CLR_SEL_FG = '#ffffff'
+    CLR_OFF_BG = '#2f2f2f'
+    CLR_OFF_FG = '#ADB5BD'
+
     def create_widgets(self):
         main_frame = ttk.Frame(self.popup, padding="10")
         main_frame.pack(fill=tk.BOTH, expand=True)
-        
+
         # 헤더
-        header = ttk.Label(main_frame, text=f"🗓️ {self.year}년 {self.month}월", 
-                          font=("맑은 고딕", 14, "bold"))
-        header.pack(pady=5)
-        
-        ttk.Label(main_frame, text="감시할 날짜를 클릭하세요 (여러 개 선택 가능)", 
-                 foreground="gray").pack(pady=2)
-        
-        # 요일 헤더
-        day_frame = ttk.Frame(main_frame)
-        day_frame.pack(pady=5)
-        
-        weekdays = ["일", "월", "화", "수", "목", "금", "토"]
-        for i, day in enumerate(weekdays):
-            color = "#ff4444" if i == 0 else ("#4444ff" if i == 6 else "black")
-            lbl = ttk.Label(day_frame, text=day, width=4, anchor='center')
-            lbl.grid(row=0, column=i, padx=1, pady=2)
-        
-        # 달력 생성
-        cal = calendar.Calendar(firstweekday=6)  # 일요일 시작
-        
+        ttk.Label(main_frame, text=f"{self.year}년 {self.month}월",
+                  font=(FONT_FAMILY, 14, "bold")).pack(pady=5)
+
+        # 선택된 날짜 표시
+        self.lbl_selected = ttk.Label(main_frame, text=self.get_selection_text(),
+                                      foreground=CLR_INFO)
+        self.lbl_selected.pack(pady=(0, SP_SM))
+
+        # 달력 그리드 계산
+        cal = calendar.Calendar(firstweekday=6)
         days_in_month = list(cal.itermonthdays(self.year, self.month))
-        
-        row = 1
-        col = 0
+        num_rows = (len(days_in_month) // self.COLS) + 1  # +1 for weekday header
+
+        cw = self.CELL_W * self.COLS
+        ch = self.CELL_H * num_rows
+
+        canvas = tk.Canvas(main_frame, width=cw, height=ch,
+                           bg=self.BG_CANVAS, highlightthickness=0)
+        canvas.pack(pady=5)
+        self.canvas = canvas
+
+        # 요일 헤더 그리기
+        weekdays = ["일", "월", "화", "수", "목", "금", "토"]
+        for i, wd in enumerate(weekdays):
+            fg = '#ff6b6b' if i == 0 else ('#6b9fff' if i == 6 else self.CLR_OFF_FG)
+            cx = i * self.CELL_W + self.CELL_W // 2
+            cy = self.CELL_H // 2
+            canvas.create_text(cx, cy, text=wd, fill=fg,
+                               font=(FONT_FAMILY, FONT_SIZE_SM, 'bold'))
+
+        # 날짜 셀 그리기
+        row, col = 1, 0
         for day in days_in_month:
-            if day == 0:
-                # 빈 칸
-                lbl = ttk.Label(day_frame, text="", width=4)
-                lbl.grid(row=row, column=col, padx=1, pady=2)
-            else:
-                # 날짜 버튼
-                is_selected = str(day) in self.selected_days
-                btn = tk.Button(
-                    day_frame,
-                    text=str(day),
-                    width=4,
-                    height=1,
-                    bg=COLOR_ACTIVE if is_selected else COLOR_WHITE,
-                    fg=COLOR_WHITE if is_selected else COLOR_DEFAULT_FG,
-                    font=("맑은 고딕", 9),
-                    command=lambda d=day: self.toggle_day(d)
-                )
-                btn.grid(row=row, column=col, padx=1, pady=2)
-                self.day_buttons[day] = btn
-            
+            if day != 0:
+                is_sel = str(day) in self.selected_days
+                self._draw_cell(day, row, col, is_sel)
             col += 1
-            if col > 6:
+            if col >= self.COLS:
                 col = 0
                 row += 1
-        
-        # 버튼
+
+        canvas.bind('<Button-1>', self._on_canvas_click)
+
+        # 확인 / 취소 버튼
         btn_frame = ttk.Frame(main_frame)
         btn_frame.pack(pady=10)
-        
-        # 작은 버튼 스타일
-        style = ttk.Style()
-        style.configure('Small.TButton', font=('맑은 고딕', 8))
-        
-        ttk.Button(btn_frame, text="🔄 전체선택", command=self.select_all, width=10, style='Small.TButton').pack(side=tk.LEFT, padx=3)
-        ttk.Button(btn_frame, text="🚫 전체취소", command=self.clear_all, width=10, style='Small.TButton').pack(side=tk.LEFT, padx=3)
-        ttk.Button(btn_frame, text="✅ 확인", command=self.confirm, width=8, style='Small.TButton').pack(side=tk.LEFT, padx=3)
-        ttk.Button(btn_frame, text="❌ 취소", command=self.cancel, width=8, style='Small.TButton').pack(side=tk.LEFT, padx=3)
-        
-        # 선택된 날짜 표시
-        self.lbl_selected = ttk.Label(main_frame, text=self.get_selection_text(), foreground="blue")
-        self.lbl_selected.pack(pady=5)
-    
+        ttk.Button(btn_frame, text="확인", command=self.confirm, width=8).pack(side=tk.LEFT, padx=SP_SM)
+        ttk.Button(btn_frame, text="취소", command=self.cancel, width=8).pack(side=tk.LEFT, padx=SP_SM)
+
+    def _draw_cell(self, day, row, col, is_selected):
+        """Canvas 위에 날짜 셀(사각형+텍스트) 그리기"""
+        bg = self.CLR_SEL_BG if is_selected else self.CLR_OFF_BG
+        fg = self.CLR_SEL_FG if is_selected else self.CLR_OFF_FG
+        x1 = col * self.CELL_W + 2
+        y1 = row * self.CELL_H + 2
+        x2 = x1 + self.CELL_W - 4
+        y2 = y1 + self.CELL_H - 4
+        tag = f'd{day}'
+        self.canvas.delete(tag)
+        self.canvas.create_rectangle(x1, y1, x2, y2, fill=bg, outline='', tags=tag)
+        self.canvas.create_text((x1 + x2) // 2, (y1 + y2) // 2,
+                                text=str(day), fill=fg,
+                                font=(FONT_FAMILY, FONT_SIZE_MD), tags=tag)
+        # 셀 위치 저장
+        self.day_buttons[day] = (row, col)
+
+    def _on_canvas_click(self, event):
+        """Canvas 클릭 → 날짜 토글"""
+        col = event.x // self.CELL_W
+        row = event.y // self.CELL_H
+        if row < 1 or col >= self.COLS:
+            return
+        # 해당 row, col에 매핑된 day 찾기
+        for day, (r, c) in self.day_buttons.items():
+            if r == row and c == col:
+                self.toggle_day(day)
+                return
+
+
     def toggle_day(self, day):
         """날짜 선택/해제 토글"""
         day_str = str(day)
@@ -288,35 +339,27 @@ class CalendarPopup:
         else:
             self.selected_days.add(day_str)
 
-        # 버튼 색상 업데이트
-        is_selected = day_str in self.selected_days
-        btn = self.day_buttons.get(day)
-        if btn:
-            btn.config(
-                bg=COLOR_ACTIVE if is_selected else COLOR_WHITE,
-                fg=COLOR_WHITE if is_selected else COLOR_DEFAULT_FG
-            )
-        
+        pos = self.day_buttons.get(day)
+        if pos:
+            row, col = pos
+            self._draw_cell(day, row, col, day_str in self.selected_days)
         self.lbl_selected.config(text=self.get_selection_text())
-    
+
     def select_all(self):
         """전체 선택"""
         _, days_count = calendar.monthrange(self.year, self.month)
         for day in range(1, days_count + 1):
             self.selected_days.add(str(day))
-        
-        for day, btn in self.day_buttons.items():
-            btn.config(bg=COLOR_ACTIVE, fg=COLOR_WHITE)
-
+            pos = self.day_buttons.get(day)
+            if pos:
+                self._draw_cell(day, pos[0], pos[1], True)
         self.lbl_selected.config(text=self.get_selection_text())
 
     def clear_all(self):
         """전체 취소"""
         self.selected_days.clear()
-
-        for day, btn in self.day_buttons.items():
-            btn.config(bg=COLOR_WHITE, fg=COLOR_DEFAULT_FG)
-        
+        for day, (r, c) in self.day_buttons.items():
+            self._draw_cell(day, r, c, False)
         self.lbl_selected.config(text=self.get_selection_text())
     
     def get_selection_text(self):
@@ -324,7 +367,11 @@ class CalendarPopup:
         sorted_days = sorted([int(d) for d in self.selected_days if d])
         if not sorted_days:
             return "선택된 날짜 없음"
-        return f"선택: {', '.join(map(str, sorted_days[:10]))}..." if len(sorted_days) > 10 else f"선택: {', '.join(map(str, sorted_days))}"
+        cnt = len(sorted_days)
+        days_str = ', '.join(f"{d}일" for d in sorted_days[:15])
+        if cnt > 15:
+            days_str += f" ... (+{cnt - 15})"
+        return f"선택된 날짜 - {days_str}"
     
     def confirm(self):
         """확인"""
@@ -371,7 +418,7 @@ class BoatEditorPopup:
         self.popup.grab_set()
 
         # 창 위치 (부모 창 중앙)
-        w, h = 400, 500
+        w, h = 400, 700
         x = parent.winfo_rootx() + (parent.winfo_width() // 2) - (w // 2)
         y = parent.winfo_rooty() + (parent.winfo_height() // 2) - (h // 2)
         self.popup.geometry(f'{w}x{h}+{x}+{y}')
@@ -473,9 +520,12 @@ class BoatEditorPopup:
             is_visible = self.check_vars[name].get()
 
             if name in self.config_map:
-                # 기존 보트: visible 필드만 업데이트
+                # 기존 보트: visible 필드 업데이트 + 숨김 시 비활성화
                 boat = dict(self.config_map[name])
                 boat['visible'] = is_visible
+                if not is_visible:
+                    boat['enabled'] = False
+                    boat['mode'] = 'off'
             else:
                 # 신규 보트: 최소 dict 생성
                 boat = {'name': name, 'enabled': False, 'visible': is_visible}
@@ -875,7 +925,7 @@ class FishingBoatMonitor:
         any_enabled = False
         for config_key, check_func in platform_checks:
             boats = self.config.get(config_key, [])
-            enabled = [b for b in boats if b.get('enabled', False)]
+            enabled = [b for b in boats if b.get('enabled', False) and b.get('visible', True)]
             if not enabled:
                 continue
             any_enabled = True
@@ -896,19 +946,17 @@ class FishingBoatMonitor:
         if not any_enabled:
             self.log("⚠️ 활성화된 선박이 없습니다!")
         
-        # 종합 알람 전송 (처음 1회, 이후 SUMMARY_INTERVAL_SECONDS마다)
+        # 종합 알람 전송 (처음 1회 무조건 + 이후는 예약 가능 자리가 있을 때만)
         if summary_data and self.config.get('summary_alert', True):
-            now = datetime.now()
             should_send = False
 
             if not self.first_summary_sent:
                 should_send = True
                 self.first_summary_sent = True
-            elif self.last_summary_time and (now - self.last_summary_time).total_seconds() >= SUMMARY_INTERVAL_SECONDS:
+            elif all_available:
                 should_send = True
 
             if should_send:
-                self.last_summary_time = now
                 self.send_summary_alert(summary_data, year)
         
         return all_available
@@ -1124,14 +1172,21 @@ class FishingBoatMonitorApp:
         self.root = root
         self.root.title("🎣 낚시배 취소석 모니터 v2.0")
         
-        w, h = 1080, 1200
+        w, h = 1080, 950
         ws = root.winfo_screenwidth()
         hs = root.winfo_screenheight()
         x = (ws / 2) - (w / 2)
         y = max(0, (hs / 2) - (h / 2))
         root.geometry('%dx%d+%d+%d' % (w, h, x, y))
         root.minsize(980, 780)
-        
+
+        # 콘솔 핸들 저장 (시작 시 한 번만)
+        self._console_hwnd = ctypes.windll.kernel32.GetConsoleWindow() or 0
+
+        # 최소화 시 트레이로 숨기기
+        if TRAY_AVAILABLE:
+            root.bind('<Unmap>', self._on_minimize)
+
         self.config = self.load_config()
         self.monitor = None
         self.monitor_thread = None
@@ -1370,17 +1425,43 @@ class FishingBoatMonitorApp:
     
     def create_widgets(self):
         style = ttk.Style()
-        style.configure('TLabel', font=('맑은 고딕', 10))
-        style.configure('TButton', font=('맑은 고딕', 10))
-        style.configure('TLabelframe.Label', font=('맑은 고딕', 10, 'bold'))
+        style.configure('TLabel', font=(FONT_FAMILY, FONT_SIZE_MD))
+        style.configure('TButton', font=(FONT_FAMILY, FONT_SIZE_MD))
+        style.configure('TLabelframe.Label', font=(FONT_FAMILY, FONT_SIZE_MD, 'bold'))
+
+        # -- 보트 그리드 버튼 3상태 스타일 --
+        for sname, bg, fg, hover in [
+            ('Monitor.TButton', CLR_SUCCESS,   CLR_FG,      '#00a87d'),
+            ('Reserve.TButton', CLR_DANGER,    CLR_FG,      '#c0392b'),
+            ('Off.TButton',     CLR_SECONDARY, CLR_FG_MUTED, '#555555'),
+        ]:
+            style.configure(sname, background=bg, foreground=fg,
+                            font=(FONT_FAMILY, FONT_SIZE_SM), padding=(2, 1))
+            style.map(sname, background=[('active', hover)])
+
+        # -- 플랫폼 토글 버튼 스타일 --
+        for sname, bg, fg in [
+            ('PlatformActive.TButton',   CLR_SUCCESS,   CLR_FG),
+            ('PlatformInactive.TButton', CLR_SECONDARY, CLR_FG_MUTED),
+        ]:
+            style.configure(sname, background=bg, foreground=fg,
+                            font=(FONT_FAMILY, FONT_SIZE_MD, 'bold'), padding=(8, 3))
+            style.map(sname, background=[('active', bg)])
+
+        # -- 월 토글 버튼 스타일 --
+        for sname, bg, fg in [
+            ('MonthActive.TButton',   CLR_SUCCESS,   CLR_FG),
+            ('MonthInactive.TButton', CLR_SECONDARY, CLR_FG_MUTED),
+        ]:
+            style.configure(sname, background=bg, foreground=fg,
+                            font=(FONT_FAMILY, FONT_SIZE_SM), padding=(4, 1))
+            style.map(sname, background=[('active', bg)])
 
         main_frame = ttk.Frame(self.root, padding="8")
         main_frame.pack(fill=tk.BOTH, expand=True)
 
         self._create_boat_section(main_frame)
-        self._create_target_section(main_frame)
-        self._create_reserve_section(main_frame)
-        self._create_interval_section(main_frame)
+        self._create_settings_section(main_frame)
         self._create_action_buttons(main_frame)
         self._create_log_section(main_frame)
 
@@ -1388,35 +1469,34 @@ class FishingBoatMonitorApp:
 
     def _create_boat_section(self, parent):
         """🚢 선박 관리 섹션"""
-        boat_frame = ttk.Labelframe(parent, text="🚢 선박 관리", padding="8", bootstyle="info")
-        boat_frame.pack(fill=tk.X, pady=(5, 3))
+        boat_frame = ttk.Labelframe(parent, text="  선박 관리", padding=SP_MD, bootstyle="info")
+        boat_frame.pack(fill=tk.X, pady=(SP_SM, SP_SM))
 
         # ── 플랫폼 선택 행 ──
         platform_row = ttk.Frame(boat_frame)
-        platform_row.pack(fill=tk.X, pady=(0, 4))
-        ttk.Label(platform_row, text="플랫폼:", font=('맑은 고딕', 10, 'bold')).pack(side=tk.LEFT, padx=(0, 6))
+        platform_row.pack(fill=tk.X, pady=(0, SP_SM))
+        ttk.Label(platform_row, text="플랫폼:", font=(FONT_FAMILY, FONT_SIZE_MD, 'bold')).pack(side=tk.LEFT, padx=(0, SP_SM))
 
         for key, name in PLATFORM_NAMES.items():
-            bg, fg = _toggle_colors(self.current_platform == key)
-            btn = tk.Button(
+            btn = ttk.Button(
                 platform_row, text=name, width=8,
-                bg=bg, fg=fg, font=('맑은 고딕', 10, 'bold'),
-                relief='groove', cursor='hand2',
+                style=_toggle_style(self.current_platform == key),
+                cursor='hand2',
                 command=lambda k=key: self.switch_platform(k)
             )
-            btn.pack(side=tk.LEFT, padx=2)
+            btn.pack(side=tk.LEFT, padx=SP_XS)
             setattr(self, f'btn_{key}', btn)
 
-        # 선사 편집 버튼 (플랫폼 버튼과 동일 크기)
-        tk.Button(
+        # 선사 편집 버튼
+        ttk.Button(
             platform_row, text="편집", width=8,
-            font=('맑은 고딕', 10, 'bold'), relief='groove', cursor='hand2',
+            style='PlatformInactive.TButton', cursor='hand2',
             command=self.open_boat_editor
-        ).pack(side=tk.LEFT, padx=(6, 2))
+        ).pack(side=tk.LEFT, padx=(SP_MD, SP_XS))
 
         # ── 선박 버튼 그리드 ──
         grid_frame = ttk.Frame(boat_frame)
-        grid_frame.pack(fill=tk.X, pady=4)
+        grid_frame.pack(fill=tk.X, pady=SP_SM)
         for c in range(10):
             grid_frame.columnconfigure(c, weight=1, uniform='boat_col')
         self.boat_buttons = {}
@@ -1424,69 +1504,66 @@ class FishingBoatMonitorApp:
 
         # ── 선박 컨트롤 행 1: 전체선택 + 사이트가기 + 월 ──
         ctrl_row1 = ttk.Frame(boat_frame)
-        ctrl_row1.pack(fill=tk.X, pady=(2, 0))
+        ctrl_row1.pack(fill=tk.X, pady=(SP_XS, 0))
 
-        self.btn_select_all = tk.Button(
-            ctrl_row1, text="☑ 전체선택", command=self.toggle_all_boats,
-            width=10, bg='SystemButtonFace', fg='black',
-            font=('맑은 고딕', 9), relief='groove', cursor='hand2'
+        self.btn_select_all = ttk.Button(
+            ctrl_row1, text="전체선택", command=self.toggle_all_boats,
+            width=10, style='Off.TButton', cursor='hand2'
         )
-        self.btn_select_all.pack(side=tk.LEFT, padx=2)
-        ttk.Button(ctrl_row1, text="🌐 사이트가기", command=self.open_boat_site, width=12).pack(side=tk.LEFT, padx=2)
+        self.btn_select_all.pack(side=tk.LEFT, padx=SP_XS)
+        ttk.Button(ctrl_row1, text="사이트가기", command=self.open_boat_site, width=12).pack(side=tk.LEFT, padx=SP_XS)
 
         # 월 선택 버튼 (사이트가기용)
-        ttk.Label(ctrl_row1, text="  ").pack(side=tk.LEFT)
+        ttk.Label(ctrl_row1, text=" ").pack(side=tk.LEFT, padx=SP_XS)
         self.selected_site_month = tk.StringVar(value="09")
         self.month_buttons = {}
         for m in MONITOR_MONTHS:
             month_str = f"{m:02d}"
-            bg, fg = _toggle_colors(m == 9)
-            btn = tk.Button(
+            btn = ttk.Button(
                 ctrl_row1, text=f"{m}월", width=4,
-                bg=bg, fg=fg, font=('맑은 고딕', 9),
-                relief='groove', cursor='hand2',
+                style=_toggle_style(m == 9, 'Month'),
+                cursor='hand2',
                 command=lambda ms=month_str: self.select_site_month(ms)
             )
-            btn.pack(side=tk.LEFT, padx=1)
+            btn.pack(side=tk.LEFT, padx=SP_XS)
             self.month_buttons[month_str] = btn
 
         # ── 선박 컨트롤 행 2: 프리셋 ──
         ctrl_row2 = ttk.Frame(boat_frame)
-        ctrl_row2.pack(fill=tk.X, pady=(4, 0))
+        ctrl_row2.pack(fill=tk.X, pady=(SP_SM, 0))
 
-        ttk.Label(ctrl_row2, text="프리셋:", font=('맑은 고딕', 9)).pack(side=tk.LEFT, padx=(2, 4))
+        ttk.Label(ctrl_row2, text="프리셋:", font=(FONT_FAMILY, FONT_SIZE_SM)).pack(side=tk.LEFT, padx=(SP_XS, SP_SM))
         self.preset_var = tk.StringVar()
         self.preset_combo = ttk.Combobox(ctrl_row2, textvariable=self.preset_var, width=18, state='readonly')
-        self.preset_combo.pack(side=tk.LEFT, padx=(0, 4))
+        self.preset_combo.pack(side=tk.LEFT, padx=(0, SP_SM))
         self.preset_combo.bind('<<ComboboxSelected>>', self.load_preset)
         self.refresh_preset_list()
 
         self.entry_preset_name = ttk.Entry(ctrl_row2, width=16)
-        self.entry_preset_name.pack(side=tk.LEFT, padx=2)
+        self.entry_preset_name.pack(side=tk.LEFT, padx=SP_XS)
         self.entry_preset_name.insert(0, "프리셋 이름")
         self.entry_preset_name.bind('<FocusIn>', lambda e: self.entry_preset_name.delete(0, tk.END) if self.entry_preset_name.get() == "프리셋 이름" else None)
-        ttk.Button(ctrl_row2, text="💾 저장", command=self.save_preset, width=7).pack(side=tk.LEFT, padx=2)
-        ttk.Button(ctrl_row2, text="🗑 삭제", command=self.delete_preset, width=7).pack(side=tk.LEFT, padx=2)
+        ttk.Button(ctrl_row2, text="저장", command=self.save_preset, width=7).pack(side=tk.LEFT, padx=SP_XS)
+        ttk.Button(ctrl_row2, text="삭제", command=self.delete_preset, width=7).pack(side=tk.LEFT, padx=SP_XS)
 
         self.grid_frame = grid_frame
         self.refresh_boat_grid()
 
-    def _create_target_section(self, parent):
-        """🎯 모니터링 대상 섹션"""
-        target_frame = ttk.Labelframe(parent, text="🎯 모니터링 대상", padding="8", bootstyle="primary")
-        target_frame.pack(fill=tk.X, pady=(3, 3))
+    def _create_settings_section(self, parent):
+        """Settings: 모니터링 대상 + 예약정보 + 간격 (통합 섹션)"""
+        settings_frame = ttk.Labelframe(parent, text="  Settings", padding=(SP_MD, SP_SM, SP_MD, SP_MD), bootstyle="info")
+        settings_frame.pack(fill=tk.X, pady=(SP_SM, SP_SM))
 
-        # 년도 + 월별 캘린더 + 선사 수 — 한 줄로
-        date_row = ttk.Frame(target_frame)
-        date_row.pack(fill=tk.X, pady=2)
+        # ── Row 1: 년도 + 월별 캘린더 + 선사 수 ──
+        date_row = ttk.Frame(settings_frame)
+        date_row.pack(fill=tk.X, pady=(0, SP_SM))
 
-        ttk.Label(date_row, text="년도:", font=('맑은 고딕', 10, 'bold')).pack(side=tk.LEFT, padx=(0, 4))
+        ttk.Label(date_row, text="년도", font=(FONT_FAMILY, FONT_SIZE_MD, 'bold')).pack(side=tk.LEFT, padx=(0, SP_SM))
         self.entry_year = ttk.Entry(date_row, width=6)
         self.entry_year.insert(0, self.config.get('target_year', '2026'))
-        self.entry_year.pack(side=tk.LEFT, padx=(0, 12))
+        self.entry_year.pack(side=tk.LEFT, padx=(0, SP_LG))
 
-        # 월별 캘린더 버튼
-        ttk.Label(date_row, text="날짜:", font=('맑은 고딕', 10, 'bold')).pack(side=tk.LEFT, padx=(0, 4))
+        ttk.Label(date_row, text="날짜", font=(FONT_FAMILY, FONT_SIZE_MD, 'bold')).pack(side=tk.LEFT, padx=(0, SP_SM))
 
         self.month_days = self.config.get('target_days', dict(EMPTY_MONTH_DAYS))
         if isinstance(self.month_days, list):
@@ -1496,100 +1573,100 @@ class FishingBoatMonitorApp:
         for month in MONITOR_MONTHS:
             month_str = f"{month:02d}"
             btn_frame = ttk.Frame(date_row)
-            btn_frame.pack(side=tk.LEFT, padx=3)
-            ttk.Button(btn_frame, text=f"📅 {month}월",
+            btn_frame.pack(side=tk.LEFT, padx=SP_XS)
+            ttk.Button(btn_frame, text=f"{month}월",
                        command=lambda m=month: self.open_calendar(m)).pack(side=tk.TOP)
             days_count = len(self.month_days.get(month_str, []))
-            lbl = ttk.Label(btn_frame, text=f"{days_count}개", foreground="#5bc0de")
+            lbl = ttk.Label(btn_frame, text=f"{days_count}개", foreground=CLR_INFO)
             lbl.pack(side=tk.TOP)
             self.month_labels[month_str] = lbl
 
         # 활성화된 선사 수 표시
-        initial_status = ' │ '.join(f"{n} 0/0" for n in PLATFORM_NAMES.values())
-        self.lbl_boat_status = tk.Label(date_row, text=f"🚢 {initial_status}",
-                                        fg="#5bc0de", font=('맑은 고딕', 10, 'bold'))
-        self.lbl_boat_status.pack(side=tk.RIGHT, padx=5)
+        initial_status = ' | '.join(f"{n} 0/0" for n in PLATFORM_NAMES.values())
+        self.lbl_boat_status = ttk.Label(date_row, text=initial_status,
+                                         foreground=CLR_INFO, font=(FONT_FAMILY, FONT_SIZE_MD, 'bold'))
+        self.lbl_boat_status.pack(side=tk.RIGHT, padx=SP_SM)
 
         # 날짜 요약
-        self.lbl_days_summary = ttk.Label(target_frame, text=self.get_days_summary(),
-                                          foreground="gray", wraplength=800)
-        self.lbl_days_summary.pack(anchor='w', padx=5, pady=(2, 0))
+        self.lbl_days_summary = ttk.Label(settings_frame, text=self.get_days_summary(),
+                                          foreground=CLR_FG_MUTED, wraplength=800)
+        self.lbl_days_summary.pack(anchor='w', padx=SP_SM, pady=(0, SP_SM))
 
-    def _create_reserve_section(self, parent):
-        """🔴 자동예약 정보 섹션"""
-        reserve_frame = ttk.Labelframe(parent, text="🔴 자동예약 정보", padding="8", bootstyle="danger")
-        reserve_frame.pack(fill=tk.X, pady=(3, 3))
+        # ── 구분선 ──
+        ttk.Separator(settings_frame, orient='horizontal').pack(fill=tk.X, pady=SP_SM)
 
-        reserve_row = ttk.Frame(reserve_frame)
-        reserve_row.pack(fill=tk.X, pady=2)
+        # ── Row 2: 예약정보 + 간격 + 체크박스 (한 줄) ──
+        row2 = ttk.Frame(settings_frame)
+        row2.pack(fill=tk.X)
 
-        ttk.Label(reserve_row, text="예약자명:").pack(side=tk.LEFT, padx=5)
-        self.entry_reserve_name = ttk.Entry(reserve_row, width=10)
+        ttk.Label(row2, text="예약자명").pack(side=tk.LEFT, padx=(0, SP_XS))
+        self.entry_reserve_name = ttk.Entry(row2, width=8)
         self.entry_reserve_name.insert(0, self.config.get('reserve_name', ''))
-        self.entry_reserve_name.pack(side=tk.LEFT, padx=2)
+        self.entry_reserve_name.pack(side=tk.LEFT, padx=(0, SP_MD))
 
-        ttk.Label(reserve_row, text="전화번호:").pack(side=tk.LEFT, padx=5)
-        self.entry_reserve_phone = ttk.Entry(reserve_row, width=13)
+        ttk.Label(row2, text="전화번호").pack(side=tk.LEFT, padx=(0, SP_XS))
+        self.entry_reserve_phone = ttk.Entry(row2, width=13)
         self.entry_reserve_phone.insert(0, self.config.get('reserve_phone', ''))
-        self.entry_reserve_phone.pack(side=tk.LEFT, padx=2)
+        self.entry_reserve_phone.pack(side=tk.LEFT, padx=(0, SP_MD))
 
-        ttk.Label(reserve_row, text="인원:").pack(side=tk.LEFT, padx=5)
-        self.entry_reserve_count = ttk.Entry(reserve_row, width=3)
+        ttk.Label(row2, text="인원").pack(side=tk.LEFT, padx=(0, SP_XS))
+        self.entry_reserve_count = ttk.Entry(row2, width=3)
         self.entry_reserve_count.insert(0, str(self.config.get('reserve_count', 1)))
-        self.entry_reserve_count.pack(side=tk.LEFT, padx=2)
-        ttk.Label(reserve_row, text="명").pack(side=tk.LEFT)
+        self.entry_reserve_count.pack(side=tk.LEFT, padx=(0, SP_XS))
+        ttk.Label(row2, text="명").pack(side=tk.LEFT, padx=(0, SP_LG))
 
-    def _create_interval_section(self, parent):
-        """⏰ 체크 간격 + 옵션 체크박스 섹션"""
-        interval_frame = ttk.Labelframe(parent, text="⏰ 체크 간격", padding="8", bootstyle="warning")
-        interval_frame.pack(fill=tk.X, pady=(3, 3))
+        # 수직 구분선
+        ttk.Separator(row2, orient='vertical').pack(side=tk.LEFT, fill=tk.Y, padx=SP_MD, pady=SP_XS)
 
-        interval_row = ttk.Frame(interval_frame)
-        interval_row.pack(fill=tk.X, pady=2)
-
-        ttk.Label(interval_row, text="최소:").pack(side=tk.LEFT, padx=5)
-        self.entry_min_interval = ttk.Entry(interval_row, width=4)
+        ttk.Label(row2, text="간격").pack(side=tk.LEFT, padx=(0, SP_XS))
+        self.entry_min_interval = ttk.Entry(row2, width=3)
         self.entry_min_interval.insert(0, str(self.config.get('check_interval_min', 8)))
-        self.entry_min_interval.pack(side=tk.LEFT, padx=2)
-        ttk.Label(interval_row, text="분").pack(side=tk.LEFT)
-
-        ttk.Label(interval_row, text="   최대:").pack(side=tk.LEFT, padx=5)
-        self.entry_max_interval = ttk.Entry(interval_row, width=4)
+        self.entry_min_interval.pack(side=tk.LEFT, padx=(0, SP_XS))
+        ttk.Label(row2, text="~").pack(side=tk.LEFT)
+        self.entry_max_interval = ttk.Entry(row2, width=3)
         self.entry_max_interval.insert(0, str(self.config.get('check_interval_max', 10)))
-        self.entry_max_interval.pack(side=tk.LEFT, padx=2)
-        ttk.Label(interval_row, text="분").pack(side=tk.LEFT)
+        self.entry_max_interval.pack(side=tk.LEFT, padx=(0, SP_XS))
+        ttk.Label(row2, text="분").pack(side=tk.LEFT, padx=(0, SP_LG))
 
-        checkbox_row = ttk.Frame(interval_frame)
-        checkbox_row.pack(fill=tk.X, pady=2)
+        # 체크박스 (오른쪽 정렬)
         self.var_test_mode = tk.BooleanVar(value=self.config.get('test_mode', True))
-        ttk.Checkbutton(checkbox_row, text="🧪 Test모드",
-                        variable=self.var_test_mode, bootstyle="warning-round-toggle").pack(side=tk.LEFT, padx=5)
+        ttk.Checkbutton(row2, text="Test", variable=self.var_test_mode,
+                        bootstyle="warning-round-toggle").pack(side=tk.RIGHT, padx=SP_SM)
         self.var_summary_alert = tk.BooleanVar(value=self.config.get('summary_alert', True))
-        ttk.Checkbutton(checkbox_row, text="📊 종합알람",
-                        variable=self.var_summary_alert, bootstyle="success-round-toggle").pack(side=tk.LEFT, padx=5)
+        ttk.Checkbutton(row2, text="종합알람", variable=self.var_summary_alert,
+                        bootstyle="success-round-toggle").pack(side=tk.RIGHT, padx=SP_SM)
 
     def _create_action_buttons(self, parent):
-        """시작/중지/저장 버튼 섹션"""
+        """시작/중지/저장 버튼 섹션 (중앙 정렬)"""
         btn_frame = ttk.Frame(parent)
-        btn_frame.pack(fill=tk.X, pady=(6, 4))
+        btn_frame.pack(pady=(SP_SM, SP_SM))
 
-        ttk.Button(btn_frame, text="💾 설정 저장", command=self.save_config, width=18, bootstyle="secondary").pack(side=tk.LEFT, padx=4, ipady=2)
-        self.btn_start = ttk.Button(btn_frame, text="🚀 시작", command=self.start_monitor, width=18, bootstyle="success")
-        self.btn_start.pack(side=tk.LEFT, padx=4, ipady=2)
-        self.btn_stop = ttk.Button(btn_frame, text="🛑 중지", command=self.stop_monitor, state="disabled", width=18, bootstyle="danger")
-        self.btn_stop.pack(side=tk.LEFT, padx=4, ipady=2)
+        ttk.Button(btn_frame, text="설정 저장", command=self.save_config, width=16, bootstyle="secondary").pack(side=tk.LEFT, padx=SP_XS, ipady=SP_XS)
+        ttk.Separator(btn_frame, orient='vertical').pack(side=tk.LEFT, fill=tk.Y, padx=SP_MD, pady=SP_XS)
+        self.btn_start = ttk.Button(btn_frame, text="시작", command=self.start_monitor, width=16, bootstyle="success")
+        self.btn_start.pack(side=tk.LEFT, padx=SP_XS, ipady=SP_XS)
+        self.btn_stop = ttk.Button(btn_frame, text="중지", command=self.stop_monitor, state="disabled", width=16, bootstyle="danger")
+        self.btn_stop.pack(side=tk.LEFT, padx=SP_XS, ipady=SP_XS)
         if TRAY_AVAILABLE:
-            ttk.Button(btn_frame, text="👁️ 숨김", command=self.hide_to_tray, width=14, bootstyle="info-outline").pack(side=tk.LEFT, padx=4, ipady=2)
+            ttk.Separator(btn_frame, orient='vertical').pack(side=tk.LEFT, fill=tk.Y, padx=SP_MD, pady=SP_XS)
+            ttk.Button(btn_frame, text="숨기기", command=self.hide_to_tray, width=12, bootstyle="info-outline").pack(side=tk.LEFT, padx=SP_XS, ipady=SP_XS)
 
     def _create_log_section(self, parent):
-        """📝 로그창 섹션"""
-        log_frame = ttk.Labelframe(parent, text="📝 모니터링 로그", padding="5", bootstyle="secondary")
-        log_frame.pack(fill=tk.BOTH, expand=True, pady=(3, 0))
+        """모니터링 로그 섹션"""
+        log_frame = ttk.Labelframe(parent, text="  모니터링 로그", padding=SP_SM, bootstyle="secondary")
+        log_frame.pack(fill=tk.BOTH, expand=True, pady=(SP_SM, 0))
 
         self.log_area = tk.Text(log_frame, height=30, state='disabled',
-                                font=("Consolas", 9), bg="#1a1a2e", fg="#e0e0e0",
-                                insertbackground="#e0e0e0", relief='flat', padx=8, pady=6)
+                                font=(FONT_MONO, FONT_SIZE_SM), bg=CLR_LOG_BG, fg=CLR_LOG_FG,
+                                insertbackground=CLR_LOG_FG, relief='flat', padx=SP_MD, pady=SP_SM)
         self.log_area.pack(fill=tk.BOTH, expand=True)
+
+        # 로그 텍스트 태그 (컬러링)
+        self.log_area.tag_configure('timestamp', foreground=CLR_LOG_TIMESTAMP)
+        self.log_area.tag_configure('success', foreground=CLR_LOG_SUCCESS)
+        self.log_area.tag_configure('error', foreground=CLR_LOG_ERROR)
+        self.log_area.tag_configure('warning', foreground=CLR_LOG_WARNING)
+        self.log_area.tag_configure('info_msg', foreground=CLR_LOG_INFO)
 
         self.log_msg("=" * 50)
         self.log_msg("🎣 낚시배 취소석 모니터 v2.0")
@@ -1735,32 +1812,25 @@ class FishingBoatMonitorApp:
             if len(name) > 6:
                 name = name[:5] + ".."
 
-            btn = tk.Button(
+            btn = ttk.Button(
                 self.grid_frame,
                 text=name,
                 width=8,
-                height=1,
-                bg=bg_color,
-                fg=fg_color,
-                font=('맑은 고딕', 9),
-                relief='groove',
-                borderwidth=1,
-                activebackground=bg_color,
+                style=BOAT_STYLE_MAP.get(mode, 'Off.TButton'),
                 cursor='hand2',
                 command=lambda idx=orig_idx: self.toggle_boat_by_index(idx)
             )
-            btn.grid(row=row, column=col, padx=1, pady=1, sticky='ew')
+            btn.grid(row=row, column=col, padx=SP_XS, pady=SP_XS, sticky='ew')
 
             # 우클릭으로 사이트가기용 선택
             btn.bind('<Button-3>', lambda e, idx=orig_idx: self.select_boat_for_site(idx))
 
             self.boat_buttons[boat['name']] = btn
 
-        # 전체선택 버튼 색상 업데이트
+        # 전체선택 버튼 스타일 업데이트
         if self.btn_select_all:
             all_on = len(visible_boats) > 0 and enabled_count == len(visible_boats)
-            bg, fg = _toggle_colors(all_on)
-            self.btn_select_all.config(bg=bg, fg=fg)
+            self.btn_select_all.configure(style=_toggle_style(all_on, 'Platform'))
 
         # 활성화된 선사 수 라벨 업데이트
         if self.lbl_boat_status:
@@ -1771,7 +1841,7 @@ class FishingBoatMonitorApp:
                 enabled = sum(1 for b in visible if b.get('enabled', False))
                 name = PLATFORM_KEY_NAMES[pk]
                 parts.append(f"{name} {enabled}/{len(visible)}")
-            self.lbl_boat_status.config(text=f"🚢 {' │ '.join(parts)}")
+            self.lbl_boat_status.configure(text=f"{' | '.join(parts)}")
     
     @property
     def current_platform(self) -> str:
@@ -1786,11 +1856,10 @@ class FishingBoatMonitorApp:
         """플랫폼 전환"""
         self.config['current_platform'] = platform
 
-        # 버튼 색상 업데이트 (데이터 구동)
+        # 버튼 스타일 업데이트
         for key in PLATFORM_NAMES:
             btn = getattr(self, f'btn_{key}')
-            bg, fg = _toggle_colors(key == platform)
-            btn.config(bg=bg, fg=fg)
+            btn.configure(style=_toggle_style(key == platform))
 
         # 그리드 새로고침
         self.selected_boat = None
@@ -1911,22 +1980,37 @@ class FishingBoatMonitorApp:
     def select_site_month(self, month_str):
         """사이트가기용 월 선택"""
         self.selected_site_month.set(month_str)
-        
-        # 버튼 색상 업데이트
+
+        # 버튼 스타일 업데이트
         for ms, btn in self.month_buttons.items():
-            bg, fg = _toggle_colors(ms == month_str)
-            btn.config(bg=bg, fg=fg)
+            btn.configure(style=_toggle_style(ms == month_str, 'Month'))
     
     def log_msg(self, msg):
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        full_msg = f"[{timestamp}] {msg}\n"
-        
+        ts_part = f"[{timestamp}] "
+        msg_part = f"{msg}\n"
+
+        # 메시지 내용에 따라 태그 결정
+        tag = None
+        if any(k in msg for k in ('✅', '성공', '완료', '저장')):
+            tag = 'success'
+        elif any(k in msg for k in ('❌', '실패', '에러', 'Error', '오류')):
+            tag = 'error'
+        elif any(k in msg for k in ('⚠', '경고', 'Warning')):
+            tag = 'warning'
+        elif any(k in msg for k in ('📅', '🔍', '📂', 'ℹ', '🚀', '🛑')):
+            tag = 'info_msg'
+
         def _update():
             self.log_area.config(state='normal')
-            self.log_area.insert(tk.END, full_msg)
+            self.log_area.insert(tk.END, ts_part, 'timestamp')
+            if tag:
+                self.log_area.insert(tk.END, msg_part, tag)
+            else:
+                self.log_area.insert(tk.END, msg_part)
             self.log_area.see(tk.END)
             self.log_area.config(state='disabled')
-        
+
         self.root.after(0, _update)
     
     def test_telegram(self):
@@ -1951,7 +2035,7 @@ class FishingBoatMonitorApp:
         
         # 두 플랫폼에서 활성화된 선박 체크
         enabled_by_platform = {
-            pk: [b for b in config.get(pk, []) if b.get('enabled', False)]
+            pk: [b for b in config.get(pk, []) if b.get('enabled', False) and b.get('visible', True)]
             for pk in PLATFORM_KEYS
         }
         total_enabled = sum(len(v) for v in enabled_by_platform.values())
@@ -1991,24 +2075,15 @@ class FishingBoatMonitorApp:
         return ctypes.windll.kernel32.GetConsoleWindow()
     
     def hide_console(self):
-        """콘솔 창 숨기기"""
-        hwnd = self.get_console_window()
-        if hwnd:
-            ctypes.windll.user32.ShowWindow(hwnd, 0)
-            try:
-                ctypes.windll.kernel32.FreeConsole()
-            except Exception:
-                pass
-
-    def show_console(self):
-        """콘솔 창 보이기"""
+        """콘솔 완전 분리 (창 + 작업표시줄 모두 제거)"""
         try:
-            ctypes.windll.kernel32.AllocConsole()
+            ctypes.windll.kernel32.FreeConsole()
         except Exception:
             pass
-        hwnd = self.get_console_window()
-        if hwnd:
-            ctypes.windll.user32.ShowWindow(hwnd, 5)
+
+    def show_console(self):
+        """콘솔 불필요 (GUI 로그창 사용)"""
+        pass
     
     def create_tray_icon_image(self):
         """트레이 아이콘 이미지 생성 (빨간색 - 낚시배 모니터)"""
@@ -2020,6 +2095,11 @@ class FishingBoatMonitorApp:
         draw.text((24, 16), "F", fill="white")
         return img
     
+    def _on_minimize(self, event):
+        """최소화 버튼 클릭 시 트레이로 숨기기"""
+        if event.widget == self.root and self.root.state() == 'iconic':
+            self.root.after(10, self.hide_to_tray)
+
     def hide_to_tray(self):
         """트레이로 숨기기"""
         if not TRAY_AVAILABLE:
@@ -2070,6 +2150,12 @@ class FishingBoatMonitorApp:
 # 🚀 실행
 # ============================================
 if __name__ == "__main__":
+    # 콘솔 창 즉시 제거 (GUI 앱이므로 콘솔 불필요)
+    try:
+        ctypes.windll.kernel32.FreeConsole()
+    except Exception:
+        pass
+
     root = ttk.Window(themename="darkly")
     app = FishingBoatMonitorApp(root)
     root.mainloop()
