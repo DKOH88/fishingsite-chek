@@ -1402,8 +1402,7 @@ class TheFishingAPIBot:
                         except requests.exceptions.Timeout:
                             log(f"⚠️ 타임아웃! 재시도... ({open_retry}/{MAX_OPEN_RETRIES})")
                         except requests.exceptions.ConnectionError:
-                            log(f"⚠️ 연결 실패! 세션 재생성... ({open_retry}/{MAX_OPEN_RETRIES})")
-                            session = self.build_session()
+                            log(f"⚠️ 연결 실패! 재시도... ({open_retry}/{MAX_OPEN_RETRIES})")
                         except Exception as e:
                             log(f"⚠️ 예외: {e} ({open_retry}/{MAX_OPEN_RETRIES})")
 
@@ -1451,7 +1450,6 @@ class TheFishingAPIBot:
                             elif result == "RETRY_IMMEDIATE":
                                 # 좌석 선점 실패 - 즉시 재시도
                                 log("🔄 즉시 재시도...")
-                                session = self.build_session()
                                 continue
 
                             else:
@@ -1462,10 +1460,8 @@ class TheFishingAPIBot:
 
                         except requests.exceptions.Timeout:
                             log(f"⚠️ 타임아웃! 재시도... ({res_attempt + 1}/{MAX_RESERVATION_RETRIES})")
-                            session = self.build_session()
                         except requests.exceptions.ConnectionError:
-                            log(f"⚠️ 연결 실패! 세션 재생성... ({res_attempt + 1}/{MAX_RESERVATION_RETRIES})")
-                            session = self.build_session()
+                            log(f"⚠️ 연결 실패! 재시도... ({res_attempt + 1}/{MAX_RESERVATION_RETRIES})")
                         except Exception as e:
                             log(f"⚠️ 예외: {e} ({res_attempt + 1}/{MAX_RESERVATION_RETRIES})")
 

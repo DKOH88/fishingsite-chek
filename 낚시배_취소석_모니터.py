@@ -16,6 +16,10 @@ import random
 import re
 import requests
 import ctypes
+import subprocess
+import tempfile
+import calendar
+import webbrowser
 from datetime import datetime, timedelta
 from urllib.parse import urlparse, parse_qs
 
@@ -27,27 +31,90 @@ try:
 except ImportError:
     TRAY_AVAILABLE = False
 
-from selenium import webdriver
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.chrome.options import Options
+from bs4 import BeautifulSoup
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 # ============================================
 # 📁 설정
 # ============================================
 CONFIG_FILE = 'fishing_boat_monitor_config.json'
+PRESETS_FILE = 'boat_presets.json'
+HTTP_TIMEOUT = (5, 10)               # (connect, read) seconds
+SUMMARY_INTERVAL_SECONDS = 4 * 3600  # 종합 알람 간격: 4시간
+NIGHT_BREAK_START_RANGE = (-10, 5)   # 랜덤 시작: 23:50 ~ 00:05
+NIGHT_BREAK_END_RANGE = (50, 65)     # 랜덤 종료: 06:50 ~ 07:05
+
+# UI 색상 상수
+COLOR_ACTIVE = '#4CAF50'             # 녹색 (활성/선택)
+COLOR_DANGER = '#F44336'             # 빨간색 (자동예약)
+COLOR_DEFAULT_BG = 'SystemButtonFace'
+COLOR_DEFAULT_FG = 'black'
+COLOR_WHITE = 'white'
+
+# 보트 모드 → (배경색, 전경색) 매핑
+MODE_COLORS = {
+    'monitor': (COLOR_ACTIVE, COLOR_WHITE),   # 모니터링만
+    'reserve': (COLOR_DANGER, COLOR_WHITE),   # 자동예약
+    'off':     (COLOR_DEFAULT_BG, COLOR_DEFAULT_FG),
+}
+
+def _toggle_colors(is_active: bool):
+    """토글 버튼 (bg, fg) 반환: 활성=녹색, 비활성=기본"""
+    return MODE_COLORS['monitor' if is_active else 'off']
+
+# 플랫폼 config 키 (load_config, save/load_preset, refresh_boat_grid 등에서 공용)
+PLATFORM_KEYS = ('thefishing_boats', 'sunsang24_boats')
+
+# 플랫폼 한글 표시명 (switch_platform, start_monitor, add_boat 등에서 공용)
+PLATFORM_NAMES = {'thefishing': '더피싱', 'sunsang24': '선상24'}
+
+# config 키 → 한글 이름 매핑 (pk.replace('_boats','') 제거용)
+PLATFORM_KEY_NAMES = {pk: PLATFORM_NAMES[pk.replace('_boats', '')] for pk in PLATFORM_KEYS}
+PLATFORM_KEY_ICONS = {'thefishing_boats': '🎣', 'sunsang24_boats': '⛵'}
+
+# 감시 가능 월 (GUI 캘린더, 사이트가기 월 버튼, 날짜 요약에서 공용)
+MONITOR_MONTHS = (9, 10, 11)
+EMPTY_MONTH_DAYS = {f"{m:02d}": [] for m in MONITOR_MONTHS}  # 빈 월-일 템플릿
+
+# HTTP 치명적 오류 키워드 (is_critical_error에서 사용)
+CRITICAL_KEYWORDS = (
+    "connection refused",
+    "max retries exceeded",
+    "connectionerror",
+    "timeout",
+    "too many redirects",
+)
+
+# 봇 폴더 경로 (실행 파일 기준 상대 경로)
+BOT_FOLDERS = {
+    'thefishing': os.path.join('bots', 'API', '더피싱'),
+    'sunsang24': os.path.join('bots', 'API', '선상24'),
+}
+
+
+def scan_bot_folder(platform: str) -> list:
+    """봇 폴더에서 *_API.py 파일을 스캔하여 선박명 리스트 반환.
+    base_api_bot.py, *봇 생성기*.py 등 유틸리티 파일은 제외."""
+    folder = BOT_FOLDERS.get(platform, '')
+    if not os.path.isdir(folder):
+        return []
+    names = []
+    for fname in sorted(os.listdir(folder)):
+        if fname.endswith('_API.py') and 'base' not in fname.lower() and '생성기' not in fname:
+            boat_name = fname.replace('_API.py', '')
+            names.append(boat_name)
+    return names
+
 
 DEFAULT_CONFIG = {
     "telegram_token": "8538517871:AAEd0Ob4O2oSk-e3NZDDfz6zSHsTf0MGD74",
     "telegram_chat_id": "393163178",
     "target_year": "2026",
     "target_months": ["09", "10", "11"],
-    "target_days": {"09": [], "10": [], "11": []},
+    "target_days": dict(EMPTY_MONTH_DAYS),
     "check_interval_min": 8,
     "check_interval_max": 10,
-    "headless_mode": True,
     "current_platform": "thefishing",  # thefishing 또는 sunsang24
     "thefishing_boats": [
         {"name": "금땡이호", "enabled": False, "base_url": "http://xn--jj0bj3lvmq92n.kr/index.php", "pa_n_uid": "5492"},
@@ -124,7 +191,7 @@ class CalendarPopup:
         self.parent = parent
         self.year = year
         self.month = month
-        self.selected_days = set(selected_days or [])
+        self.selected_days = {str(d) for d in (selected_days or [])}
         self.callback = callback
         self.day_buttons = {}
         
@@ -164,7 +231,6 @@ class CalendarPopup:
             lbl.grid(row=0, column=i, padx=1, pady=2)
         
         # 달력 생성
-        import calendar
         cal = calendar.Calendar(firstweekday=6)  # 일요일 시작
         
         days_in_month = list(cal.itermonthdays(self.year, self.month))
@@ -178,14 +244,14 @@ class CalendarPopup:
                 lbl.grid(row=row, column=col, padx=1, pady=2)
             else:
                 # 날짜 버튼
-                is_selected = str(day) in self.selected_days or day in self.selected_days
+                is_selected = str(day) in self.selected_days
                 btn = tk.Button(
-                    day_frame, 
-                    text=str(day), 
-                    width=4, 
+                    day_frame,
+                    text=str(day),
+                    width=4,
                     height=1,
-                    bg="#4CAF50" if is_selected else "white",
-                    fg="white" if is_selected else "black",
+                    bg=COLOR_ACTIVE if is_selected else COLOR_WHITE,
+                    fg=COLOR_WHITE if is_selected else COLOR_DEFAULT_FG,
                     font=("맑은 고딕", 9),
                     command=lambda d=day: self.toggle_day(d)
                 )
@@ -218,41 +284,38 @@ class CalendarPopup:
         """날짜 선택/해제 토글"""
         day_str = str(day)
         if day_str in self.selected_days:
-            self.selected_days.remove(day_str)
-        elif day in self.selected_days:
-            self.selected_days.remove(day)
+            self.selected_days.discard(day_str)
         else:
             self.selected_days.add(day_str)
-        
+
         # 버튼 색상 업데이트
-        is_selected = day_str in self.selected_days or day in self.selected_days
+        is_selected = day_str in self.selected_days
         btn = self.day_buttons.get(day)
         if btn:
             btn.config(
-                bg="#4CAF50" if is_selected else "white",
-                fg="white" if is_selected else "black"
+                bg=COLOR_ACTIVE if is_selected else COLOR_WHITE,
+                fg=COLOR_WHITE if is_selected else COLOR_DEFAULT_FG
             )
         
         self.lbl_selected.config(text=self.get_selection_text())
     
     def select_all(self):
         """전체 선택"""
-        import calendar
         _, days_count = calendar.monthrange(self.year, self.month)
         for day in range(1, days_count + 1):
             self.selected_days.add(str(day))
         
         for day, btn in self.day_buttons.items():
-            btn.config(bg="#4CAF50", fg="white")
-        
+            btn.config(bg=COLOR_ACTIVE, fg=COLOR_WHITE)
+
         self.lbl_selected.config(text=self.get_selection_text())
-    
+
     def clear_all(self):
         """전체 취소"""
         self.selected_days.clear()
-        
+
         for day, btn in self.day_buttons.items():
-            btn.config(bg="white", fg="black")
+            btn.config(bg=COLOR_WHITE, fg=COLOR_DEFAULT_FG)
         
         self.lbl_selected.config(text=self.get_selection_text())
     
@@ -272,6 +335,164 @@ class CalendarPopup:
     
     def cancel(self):
         """취소"""
+        self.popup.destroy()
+
+
+# ============================================
+# ✏️ 선사 편집 팝업
+# ============================================
+class BoatEditorPopup:
+    """선사 편집 팝업 — 봇 폴더 스캔 결과로 체크박스 표시, 체크=그리드에 표시"""
+
+    def __init__(self, parent, platform, boats_config, callback=None):
+        self.parent = parent
+        self.platform = platform
+        self.boats_config = boats_config  # 현재 config의 보트 리스트 (dict 리스트)
+        self.callback = callback
+        self.check_vars = {}  # {선박명: BooleanVar}
+
+        # 기존 config에서 선박명 → dict 매핑
+        self.config_map = {b['name']: b for b in boats_config}
+
+        # 봇 폴더 스캔
+        self.folder_names = scan_bot_folder(platform)
+
+        # 통합 선박 목록: 폴더 이름 + config에만 있는 이름
+        config_names = set(self.config_map.keys())
+        folder_set = set(self.folder_names)
+        # 폴더에 있는 것 우선, 그 뒤에 config에만 있는 것 (가나다순)
+        config_only = sorted(config_names - folder_set)
+        self.all_names = self.folder_names + config_only
+
+        self.popup = tk.Toplevel(parent)
+        platform_label = PLATFORM_NAMES.get(platform, platform)
+        self.popup.title(f"✏️ {platform_label} 선사 편집")
+        self.popup.transient(parent)
+        self.popup.grab_set()
+
+        # 창 위치 (부모 창 중앙)
+        w, h = 400, 500
+        x = parent.winfo_rootx() + (parent.winfo_width() // 2) - (w // 2)
+        y = parent.winfo_rooty() + (parent.winfo_height() // 2) - (h // 2)
+        self.popup.geometry(f'{w}x{h}+{x}+{y}')
+
+        self._create_widgets()
+
+    def _create_widgets(self):
+        main_frame = ttk.Frame(self.popup, padding="10")
+        main_frame.pack(fill=tk.BOTH, expand=True)
+
+        # 헤더
+        platform_label = PLATFORM_NAMES.get(self.platform, self.platform)
+        header = ttk.Label(main_frame, text=f"✏️ {platform_label} 선사 편집",
+                           font=("맑은 고딕", 14, "bold"))
+        header.pack(pady=5)
+        ttk.Label(main_frame, text="체크한 선사만 그리드에 표시됩니다",
+                  foreground="gray").pack(pady=2)
+
+        # 모두 선택/해제 행
+        sel_row = ttk.Frame(main_frame)
+        sel_row.pack(fill=tk.X, pady=(5, 2))
+        ttk.Button(sel_row, text="모두 선택", command=self._select_all,
+                   width=10).pack(side=tk.LEFT, padx=3)
+        ttk.Button(sel_row, text="모두 해제", command=self._clear_all,
+                   width=10).pack(side=tk.LEFT, padx=3)
+        self.lbl_count = ttk.Label(sel_row, text="", foreground="blue")
+        self.lbl_count.pack(side=tk.RIGHT, padx=5)
+
+        # 스크롤 가능한 체크박스 영역 (Canvas + Scrollbar)
+        canvas_frame = ttk.Frame(main_frame)
+        canvas_frame.pack(fill=tk.BOTH, expand=True, pady=5)
+
+        canvas = tk.Canvas(canvas_frame, highlightthickness=0)
+        scrollbar = ttk.Scrollbar(canvas_frame, orient=tk.VERTICAL, command=canvas.yview)
+        self.inner_frame = ttk.Frame(canvas)
+
+        self.inner_frame.bind(
+            '<Configure>',
+            lambda e: canvas.configure(scrollregion=canvas.bbox('all'))
+        )
+        canvas.create_window((0, 0), window=self.inner_frame, anchor='nw')
+        canvas.configure(yscrollcommand=scrollbar.set)
+
+        canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+        # 마우스 휠 스크롤 바인딩
+        def _on_mousewheel(event):
+            canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+        canvas.bind_all('<MouseWheel>', _on_mousewheel)
+        self.popup.bind('<Destroy>', lambda e: canvas.unbind_all('<MouseWheel>'))
+
+        # 체크박스 생성
+        for name in self.all_names:
+            var = tk.BooleanVar()
+            # visible 상태 결정: config에 있으면 visible 필드, 없으면 False (신규)
+            if name in self.config_map:
+                var.set(self.config_map[name].get('visible', True))
+            else:
+                var.set(False)
+
+            self.check_vars[name] = var
+            cb = ttk.Checkbutton(
+                self.inner_frame, text=name, variable=var,
+                command=self._update_count_label
+            )
+            cb.pack(anchor='w', padx=10, pady=1)
+
+        self._update_count_label()
+
+        # 확인/취소 버튼 행
+        btn_frame = ttk.Frame(main_frame)
+        btn_frame.pack(pady=5)
+        ttk.Button(btn_frame, text="확인", command=self._confirm,
+                   width=10).pack(side=tk.LEFT, padx=5)
+        ttk.Button(btn_frame, text="취소", command=self._cancel,
+                   width=10).pack(side=tk.LEFT, padx=5)
+
+    def _update_count_label(self):
+        checked = sum(1 for v in self.check_vars.values() if v.get())
+        total = len(self.check_vars)
+        self.lbl_count.config(text=f"선택: {checked}/{total}")
+
+    def _select_all(self):
+        for var in self.check_vars.values():
+            var.set(True)
+        self._update_count_label()
+
+    def _clear_all(self):
+        for var in self.check_vars.values():
+            var.set(False)
+        self._update_count_label()
+
+    def _confirm(self):
+        """확인 — visible 상태를 반영한 보트 리스트를 콜백으로 전달"""
+        updated_boats = []
+
+        for name in self.all_names:
+            is_visible = self.check_vars[name].get()
+
+            if name in self.config_map:
+                # 기존 보트: visible 필드만 업데이트
+                boat = dict(self.config_map[name])
+                boat['visible'] = is_visible
+            else:
+                # 신규 보트: 최소 dict 생성
+                boat = {'name': name, 'enabled': False, 'visible': is_visible}
+                # 더피싱은 base_url, pa_n_uid 필요하지만 아직 모르므로 빈값
+                if self.platform == 'thefishing':
+                    boat['base_url'] = ''
+                    boat['pa_n_uid'] = ''
+                else:
+                    boat['base_url'] = ''
+
+            updated_boats.append(boat)
+
+        if self.callback:
+            self.callback(updated_boats)
+        self.popup.destroy()
+
+    def _cancel(self):
         self.popup.destroy()
 
 
@@ -327,7 +548,7 @@ class FishingBoatMonitor:
     def __init__(self, log_callback, config):
         self.log = log_callback
         self.config = config
-        self.driver = None
+        self.session = None
         self.is_running = False
         self.notifier = TelegramNotifier(
             config.get('telegram_token', ''),
@@ -339,28 +560,39 @@ class FishingBoatMonitor:
         # 종합 알람 타이밍 (처음 1회, 이후 4시간마다)
         self.first_summary_sent = False
         self.last_summary_time = None
+
+        # 야간 브레이크 상태
+        self._night_break_started = False
+        self._break_start_minute = random.randint(*NIGHT_BREAK_START_RANGE)
+        self._break_end_minute = random.randint(*NIGHT_BREAK_END_RANGE)
     
-        self.last_summary_time = None
-    
-    def is_critical_error(self, error):
-        """치명적인 드라이버 오류인지 확인"""
+    @staticmethod
+    def is_critical_error(error):
+        """치명적인 HTTP 오류인지 확인"""
         err_str = str(error).lower()
-        critical_keywords = [
-            "winerror 10061", 
-            "connection refused", 
-            "max retries exceeded", 
-            "disconnected", 
-            "invalid session id",
-            "chrome not reachable",
-            "no such execution context"
-        ]
-        return any(k in err_str for k in critical_keywords)
+        return any(k in err_str for k in CRITICAL_KEYWORDS)
+
+    def _handle_available(self, boat: dict, year: str, month: str, day: str,
+                          date_str: str, status: str, reserve_url: str, platform: str):
+        """취소석 감지 시 알림 전송 + 자동예약 실행 (공통 로직)"""
+        boat_name = boat['name']
+        alert_key = f"{boat_name}-{date_str}"
+
+        if alert_key not in self.alerted_dates:
+            if self.notifier.send_cancellation_alert(
+                boat_name=boat_name,
+                date=f"{year}년 {month}월 {day}일",
+                url=reserve_url,
+                status=status
+            ):
+                self.log(f"  📱 텔레그램 알림 전송!")
+                self.alerted_dates.add(alert_key)
+
+            if boat.get('mode') == 'reserve':
+                self.run_auto_reserve(boat, date_str, platform)
 
     def run_auto_reserve(self, boat: dict, date_str: str, platform: str):
         """자동예약 실행 (별도 스레드에서 봇 실행)"""
-        import subprocess
-        import tempfile
-        
         boat_name = boat['name']
         reserve_key = f"{boat_name}-{date_str}"
         
@@ -383,12 +615,8 @@ class FishingBoatMonitor:
         }
         
         # 봇 파일 경로 결정
-        if platform == 'thefishing':
-            bot_dir = os.path.join(os.path.dirname(__file__), 'bots', '더피싱')
-            bot_file = os.path.join(bot_dir, f"{boat_name}_Bot.py")
-        else:  # sunsang24
-            bot_dir = os.path.join(os.path.dirname(__file__), 'bots', '선상24')
-            bot_file = os.path.join(bot_dir, f"{boat_name}_Bot.py")
+        bot_dir = os.path.join(os.path.dirname(__file__), 'bots', PLATFORM_NAMES.get(platform, platform))
+        bot_file = os.path.join(bot_dir, f"{boat_name}_Bot.py")
         
         if not os.path.exists(bot_file):
             self.log(f"❌ [{boat_name}] 봇 파일 없음: {bot_file}")
@@ -415,113 +643,121 @@ class FishingBoatMonitor:
         except Exception as e:
             self.log(f"❌ [{boat_name}] 봇 실행 실패: {e}")
     
-    def setup_driver(self):
-        self.log("🚗 크롬 드라이버 설정 중...")
-        
-        chrome_options = Options()
-        
-        if self.config.get('headless_mode', True):
-            chrome_options.add_argument('--headless=new')
-            self.log("👻 헤드리스 모드 활성화")
-        
-        chrome_options.add_argument('--disable-gpu')
-        chrome_options.add_argument('--no-sandbox')
-        chrome_options.add_argument('--disable-dev-shm-usage')
-        chrome_options.add_argument('--window-size=1200,900')
-        chrome_options.add_argument('--log-level=3')
-        chrome_options.add_argument('--disable-blink-features=AutomationControlled')
-        chrome_options.add_experimental_option("excludeSwitches", ["enable-automation", "enable-logging"])
-        chrome_options.add_experimental_option('useAutomationExtension', False)
-        chrome_options.add_argument('--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36')
-        
-        service = Service()
-        service.log_path = os.devnull
-        
-        self.driver = webdriver.Chrome(service=service, options=chrome_options)
-        
-        self.driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {
-            "source": "Object.defineProperty(navigator, 'webdriver', {get: () => undefined})"
+    def build_session(self):
+        """HTTP 세션 생성 (Selenium 드라이버 대체)"""
+        self.log("🌐 HTTP 세션 설정 중...")
+
+        s = requests.Session()
+        s.headers.update({
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+            "Accept-Language": "ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7",
+            "Connection": "keep-alive",
         })
-        
-        self.log("✅ 드라이버 준비 완료")
-    
-    def build_calendar_url(self, base_url: str, pa_n_uid: str, year: str, month: str):
-        """달력 페이지 URL 생성"""
+
+        retry = Retry(total=2, backoff_factor=0.1, status_forcelist=[500, 502, 503, 504])
+        adapter = HTTPAdapter(max_retries=retry)
+        s.mount("http://", adapter)
+        s.mount("https://", adapter)
+
+        self.session = s
+        self.log("✅ HTTP 세션 준비 완료 (경량 모드)")
+
+    def _fetch_page(self, url: str) -> str:
+        """URL에서 HTML 페이지를 가져와 텍스트로 반환"""
+        response = self.session.get(url, timeout=HTTP_TIMEOUT)
+        return response.text
+
+    def _record_result(self, result_list: list, month: str, day, status: str,
+                       is_available: bool, suppress_keyword: str = ""):
+        """결과 기록 + 로그 출력 (공통 패턴)"""
+        result_list.append((f"{month}/{day}", status, is_available))
+        if is_available:
+            self.log(f"  🎉 {month}/{day}: ✅ {status}")
+        elif suppress_keyword and suppress_keyword in status:
+            pass  # 예약완료/예약마감 등 빈번한 상태는 로그 생략
+        else:
+            self.log(f"  📅 {month}/{day}: ❌ {status}")
+
+    @staticmethod
+    def _make_date_str(year: str, month: str, day) -> str:
+        """YYYYMMDD 형식 날짜 문자열 생성"""
+        return f"{year}{month}{str(day).zfill(2)}"
+
+    @staticmethod
+    def _get_domain(url: str) -> str:
+        """URL에서 스킴+호스트 도메인 추출 (예: 'https://example.com')"""
+        parsed = urlparse(url)
+        return f"{parsed.scheme}://{parsed.netloc}"
+
+    @staticmethod
+    def build_calendar_url(base_url: str, pa_n_uid: str, year: str, month: str):
+        """더피싱 달력 페이지 URL 생성"""
         return f"{base_url}?mid=bk&year={year}&month={month}&day=01&mode=cal&PA_N_UID={pa_n_uid}#list"
+
+    @staticmethod
+    def build_schedule_url(base_url: str, year: str, month: str):
+        """선상24 스케줄 페이지 URL 생성"""
+        return f"{base_url}/ship/schedule_fleet/{year}{month}"
     
-    def check_date_availability(self, date_str: str, pa_n_uid: str):
+    def check_date_availability(self, page_source: str, date_str: str, pa_n_uid: str):
         """
-        특정 날짜의 예약 가능 여부 확인
+        특정 날짜의 예약 가능 여부 확인 (HTML 문자열 기반)
+        page_source: 이미 가져온 HTML 텍스트
         date_str: YYYYMMDD 형식
         """
         try:
-            page_source = self.driver.page_source
-            
             # 해당 날짜가 페이지에 있는지 확인
             date_pattern = f"date={date_str}"
             if date_pattern not in page_source:
                 return False, "정보없음"
-            
-            # r_cal_box 단위로 해당 날짜 블록 찾기
-            # 패턴: r_cal_box 내에서 date=YYYYMMDD를 포함하는 블록
+
+            # r_cal_box 단위로 해당 날짜 블록 찾기 (기존 regex 로직 유지)
             cal_box_pattern = rf'<div class="r_cal_box">(.*?)</div>\s*</div>\s*</div>'
             cal_boxes = re.findall(cal_box_pattern, page_source, re.DOTALL)
-            
+
             for box_content in cal_boxes:
                 if date_pattern in box_content:
-                    # 이 블록이 해당 날짜의 블록
-                    
-                    # 1. "예약완료" 텍스트가 있으면 → 예약 불가
                     if '예약완료' in box_content:
                         return False, "예약완료"
-                    
-                    # 2. "예약하기" 버튼이 있으면 → 예약 가능
+
                     if '>예약하기<' in box_content or '>예약하기 <' in box_content:
-                        # 남은 인원 추출
                         remain_match = re.search(r'남은인원.*?(\d+)명', box_content, re.DOTALL)
                         if remain_match:
                             return True, f"남은인원: {remain_match.group(1)}명"
                         return True, "예약가능"
-                    
-                    # 3. "대기하기" 버튼만 있으면 → 예약 마감
+
                     if '>대기하기<' in box_content:
                         return False, "예약마감(대기가능)"
-                    
+
                     return False, "정보없음"
-            
-            # 폴백: r_cal_box 패턴으로 못 찾으면 전체 검색
-            # onclick에서 정확히 해당 날짜의 "예약하기" 버튼 찾기
+
+            # 폴백: BeautifulSoup으로 해당 날짜의 예약하기/대기하기 링크 검색
             try:
-                xpath_reserve = f"//a[contains(@onclick, 'date={date_str}') and contains(text(), '예약하기')]"
-                reserve_btn = self.driver.find_element(By.XPATH, xpath_reserve)
-                if reserve_btn:
-                    # 버튼 주변 텍스트에서 예약완료 확인
-                    try:
-                        parent = reserve_btn.find_element(By.XPATH, "./ancestor::div[@class='r_cal_box']")
-                        parent_html = parent.get_attribute('innerHTML')
-                        if '예약완료' in parent_html:
-                            return False, "예약완료"
-                        
-                        remain_match = re.search(r'남은인원.*?(\d+)명', parent_html, re.DOTALL)
-                        if remain_match:
-                            return True, f"남은인원: {remain_match.group(1)}명"
-                    except:
-                        pass
-                    return True, "예약가능"
-            except:
+                soup = BeautifulSoup(page_source, 'html.parser')
+
+                # 예약하기 링크 찾기
+                for a_tag in soup.find_all('a', onclick=True):
+                    if f'date={date_str}' in a_tag.get('onclick', '') and '예약하기' in a_tag.get_text():
+                        parent_box = a_tag.find_parent('div', class_='r_cal_box')
+                        if parent_box:
+                            box_html = str(parent_box)
+                            if '예약완료' in box_html:
+                                return False, "예약완료"
+                            remain_match = re.search(r'남은인원.*?(\d+)명', box_html, re.DOTALL)
+                            if remain_match:
+                                return True, f"남은인원: {remain_match.group(1)}명"
+                        return True, "예약가능"
+
+                # 대기하기 링크 찾기
+                for a_tag in soup.find_all('a', onclick=True):
+                    if f'date={date_str}' in a_tag.get('onclick', '') and '대기하기' in a_tag.get_text():
+                        return False, "예약마감(대기가능)"
+            except Exception:
                 pass
-            
-            # 대기하기 버튼 확인
-            try:
-                xpath_waiting = f"//a[contains(@onclick, 'date={date_str}') and contains(text(), '대기하기')]"
-                waiting_btn = self.driver.find_element(By.XPATH, xpath_waiting)
-                if waiting_btn:
-                    return False, "예약마감(대기가능)"
-            except:
-                pass
-            
+
             return False, "정보없음"
-            
+
         except Exception as e:
             return False, f"오류: {e}"
     
@@ -546,67 +782,30 @@ class FishingBoatMonitor:
             self.log(f"🚢 [{boat_name}] {month}월 체크 ({len(days)}일)...")
             
             try:
-                self.driver.get(url)
-                time.sleep(1.5)
-                
-                # 앱 설치 팝업 알림 처리 (일부 선사에 나타남)
-                try:
-                    alert = self.driver.switch_to.alert
-                    alert.dismiss()  # 취소 클릭
-                    time.sleep(0.3)
-                except:
-                    pass  # 알림 없으면 무시
-                
+                page_source = self._fetch_page(url)
+
                 for day in days:
-                    day_padded = str(day).zfill(2)
-                    date_str = f"{year}{month}{day_padded}"
-                    
-                    is_available, status = self.check_date_availability(date_str, pa_n_uid)
-                    
-                    # 종합 알람용 데이터 수집 (모든 날짜)
-                    result_list.append((f"{month}/{day}", status, is_available))
-                    
+                    date_str = self._make_date_str(year, month, day)
+
+                    is_available, status = self.check_date_availability(page_source, date_str, pa_n_uid)
+                    self._record_result(result_list, month, day, status, is_available, "예약완료")
+
                     if is_available:
-                        self.log(f"  🎉 {month}/{day}: ✅ {status}")
-                        
-                        alert_key = f"{boat_name}-{date_str}"
-                        if alert_key not in self.alerted_dates:
-                            parsed = urlparse(base_url)
-                            domain = f"{parsed.scheme}://{parsed.netloc}"
-                            # 모바일용 URL로 변경
-                            reserve_url = f"{domain}/m/_core/module/reservation_boat_v5.2_seat1/m/popu2.step1.php?date={date_str}&PA_N_UID={pa_n_uid}"
-                            
-                            if self.notifier.send_cancellation_alert(
-                                boat_name=boat_name,
-                                date=f"{year}년 {month}월 {day}일",
-                                url=reserve_url,
-                                status=status
-                            ):
-                                self.log(f"  📱 텔레그램 알림 전송!")
-                                self.alerted_dates.add(alert_key)
-                            
-                            # 자동예약 모드인 경우 봇 실행
-                            if boat.get('mode') == 'reserve':
-                                self.run_auto_reserve(boat, date_str, 'thefishing')
-                    else:
-                        if "예약완료" not in status:
-                            self.log(f"  📅 {month}/{day}: ❌ {status}")
+                        domain = self._get_domain(base_url)
+                        reserve_url = f"{domain}/m/_core/module/reservation_boat_v5.2_seat1/m/popu2.step1.php?date={date_str}&PA_N_UID={pa_n_uid}"
+                        self._handle_available(boat, year, month, day, date_str, status, reserve_url, 'thefishing')
                             
             except Exception as e:
-                if self.is_critical_error(e):
-                    raise e
-                self.log(f"  ⚠️ [{boat_name}] 오류: {e}")
-        
+                self._handle_check_error(e, f"[{boat_name}]")
+
         return result_list
-    
+
     def check_napoli_boat(self, boat: dict, year: str, month_days: dict):
         """나폴리호 전용 체크 (예약 페이지에서 직접 남은자리 확인) - 모든 날짜의 상태 반환"""
         boat_name = boat['name']
         base_url = boat['base_url']
         pa_n_uid = boat['pa_n_uid']
-        
-        parsed = urlparse(base_url)
-        domain = f"{parsed.scheme}://{parsed.netloc}"
+        domain = self._get_domain(base_url)
         
         # 모든 날짜의 상태를 수집: [(date_str, status, is_available), ...]
         result_list = []
@@ -618,174 +817,98 @@ class FishingBoatMonitor:
             self.log(f"🚢 [{boat_name}] {month}월 체크 ({len(days)}일)...")
             
             for day in days:
-                day_padded = str(day).zfill(2)
-                date_str = f"{year}{month}{day_padded}"
-                
-                # 예약 페이지 직접 접근 (공백 없이)
-                reserve_url = domain + "/_core/module/reservation_boat_v3/popup.step1.php?date=" + date_str + "&PA_N_UID=" + pa_n_uid
+                date_str = self._make_date_str(year, month, day)
+
+                # 예약 페이지 직접 접근
+                reserve_url = f"{domain}/_core/module/reservation_boat_v3/popup.step1.php?date={date_str}&PA_N_UID={pa_n_uid}"
                 
                 try:
-                    self.driver.get(reserve_url)
-                    time.sleep(1.2)
-                    
-                    # 앱 설치 팝업 알림 처리
-                    try:
-                        alert = self.driver.switch_to.alert
-                        alert.dismiss()
-                        time.sleep(0.3)
-                    except:
-                        pass
-                    
-                    # 해당 PA_N_UID의 남은자리 확인
-                    page_source = self.driver.page_source
-                    
+                    page_source = self._fetch_page(reserve_url)
+
                     # PA_N_UID1484 행 전체를 찾아서 남은자리(4번째 td) 추출
                     # 구조: <tr>...<input id="PA_N_UID1484">...<td>배명</td><td>총인원</td><td>남은자리</td></tr>
                     row_pattern = rf'<tr[^>]*>.*?id="PA_N_UID{pa_n_uid}".*?</tr>'
                     row_match = re.search(row_pattern, page_source, re.DOTALL)
                     
+                    # HTML에서 남은자리 파싱
+                    is_available, status = False, "정보없음"
                     if row_match:
                         row_html = row_match.group(0)
-                        
-                        # 해당 행에서 모든 숫자명 패턴 찾기
-                        # 총인원은 앞에, 남은자리는 마지막에 있음
                         numbers = re.findall(r'>(\d+)명<', row_html)
-                        
                         if len(numbers) >= 2:
-                            # 첫번째: 총인원, 두번째: 남은자리
-                            remaining = int(numbers[-1])  # 마지막 숫자가 남은자리
-                            
+                            remaining = int(numbers[-1])
                             if remaining >= 1:
-                                status = f"남은자리: {remaining}명"
-                                self.log(f"  🎉 {month}/{day}: ✅ {status}")
-                                
-                                # 종합 알람용 데이터 수집
-                                result_list.append((f"{month}/{day}", status, True))
-                                
-                                alert_key = f"{boat_name}-{date_str}"
-                                if alert_key not in self.alerted_dates:
-                                    # 모바일용 URL로 변경
-                                    mobile_url = domain + "/m/_core/module/reservation_boat_v3/m/popup.step1.php?date=" + date_str + "&PA_N_UID=" + pa_n_uid
-                                    if self.notifier.send_cancellation_alert(
-                                        boat_name=boat_name,
-                                        date=f"{year}년 {month}월 {day}일",
-                                        url=mobile_url,
-                                        status=status
-                                    ):
-                                        self.log(f"  📱 텔레그램 알림 전송!")
-                                        self.alerted_dates.add(alert_key)
-                                        
-                                        # [NEW] 자동예약 모드인 경우 봇 실행
-                                        if boat.get('mode') == 'reserve':
-                                            self.run_auto_reserve(boat, date_str, 'thefishing')
+                                is_available, status = True, f"남은자리: {remaining}명"
                             else:
-                                self.log(f"  📅 {month}/{day}: ❌ 예약완료")
-                                result_list.append((f"{month}/{day}", "예약완료", False))
-                        else:
-                            self.log(f"  📅 {month}/{day}: ❌ 정보없음")
-                            result_list.append((f"{month}/{day}", "정보없음", False))
-                    else:
-                        self.log(f"  📅 {month}/{day}: ❌ 정보없음")
-                        result_list.append((f"{month}/{day}", "정보없음", False))
+                                status = "예약완료"
+
+                    self._record_result(result_list, month, day, status, is_available, "예약완료")
+
+                    if is_available:
+                        mobile_url = f"{domain}/m/_core/module/reservation_boat_v3/m/popup.step1.php?date={date_str}&PA_N_UID={pa_n_uid}"
+                        self._handle_available(boat, year, month, day, date_str, status, mobile_url, 'thefishing')
                         
                 except Exception as e:
-                    if self.is_critical_error(e):
-                        raise e
-                    self.log(f"  ⚠️ {month}/{day}: 오류 - {e}")
-                    result_list.append((f"{month}/{day}", f"오류", False))
+                    self._handle_check_error(e, f"{month}/{day}")
+                    result_list.append((f"{month}/{day}", "오류", False))
         
         return result_list
     
     def run_single_check(self):
         """모든 활성화된 배들을 한 번 체크 (더피싱 + 선상24)"""
         year = self.config['target_year']
-        month_days = self.config.get('target_days', {"09": [], "10": [], "11": []})
+        month_days = self.config.get('target_days', dict(EMPTY_MONTH_DAYS))
         
         # 이전 버전 호환 (list -> dict)
         if isinstance(month_days, list):
             month_days = {"09": month_days, "10": [], "11": []}
         
         all_available = []
-        # 종합 알람용 상세 정보 수집: {날짜: [(선사, 상태, 예약가능여부), ...]}
-        summary_data = {}
-        
-        # 1. 더피싱 선박 체크
-        thefishing_boats = self.config.get('thefishing_boats', [])
-        enabled_thefishing = [b for b in thefishing_boats if b.get('enabled', False)]
-        
-        if enabled_thefishing:
-            self.log(f"🎣 [더피싱] {len(enabled_thefishing)}개 선박 체크...")
-            for boat in enabled_thefishing:
-                if not self.is_running:  # 즉시 중지
+        summary_data = {}  # {날짜: [(선사, 상태, 예약가능여부), ...]}
+
+        # 플랫폼별 체크 설정: (config_key, check_func)
+        platform_checks = [
+            ('thefishing_boats', self.check_boat),
+            ('sunsang24_boats', self.check_sunsang24_boat),
+        ]
+
+        any_enabled = False
+        for config_key, check_func in platform_checks:
+            boats = self.config.get(config_key, [])
+            enabled = [b for b in boats if b.get('enabled', False)]
+            if not enabled:
+                continue
+            any_enabled = True
+            icon = PLATFORM_KEY_ICONS.get(config_key, '🚢')
+            self.log(f"{icon} [{PLATFORM_KEY_NAMES[config_key]}] {len(enabled)}개 선박 체크...")
+
+            for boat in enabled:
+                if not self.is_running:
                     return all_available
-                result = self.check_thefishing_boat(boat, year, month_days)
-                for item in result:
-                    # item = (date_str, status, is_available)
-                    if isinstance(item, tuple) and len(item) == 3:
-                        date_str, status, is_available = item
-                    else:
-                        # 이전 형식 호환
-                        date_str = item if isinstance(item, str) else item[0]
-                        status = "예약가능"
-                        is_available = True
-                    
+                result = check_func(boat, year, month_days)
+                for date_str, status, is_available in result:
                     if is_available:
                         all_available.append((boat['name'], date_str))
-                    
-                    # 종합 알람용 데이터 수집 (모든 날짜)
-                    if date_str not in summary_data:
-                        summary_data[date_str] = []
-                    summary_data[date_str].append((boat['name'], status, is_available))
-        
-        # 2. 선상24 선박 체크
-        sunsang24_boats = self.config.get('sunsang24_boats', [])
-        enabled_sunsang24 = [b for b in sunsang24_boats if b.get('enabled', False)]
-        
-        if enabled_sunsang24:
-            self.log(f"⛵ [선상24] {len(enabled_sunsang24)}개 선박 체크...")
-            for boat in enabled_sunsang24:
-                if not self.is_running:  # 즉시 중지
-                    return all_available
-                result = self.check_sunsang24_boat(boat, year, month_days)
-                for item in result:
-                    if isinstance(item, tuple) and len(item) == 3:
-                        date_str, status, is_available = item
-                    else:
-                        date_str = item if isinstance(item, str) else item[0]
-                        status = "예약가능"
-                        is_available = True
-                    
-                    if is_available:
-                        all_available.append((boat['name'], date_str))
-                    
-                    if date_str not in summary_data:
-                        summary_data[date_str] = []
-                    summary_data[date_str].append((boat['name'], status, is_available))
-        
-        if not enabled_thefishing and not enabled_sunsang24:
+                    summary_data.setdefault(date_str, []).append(
+                        (boat['name'], status, is_available)
+                    )
+
+        if not any_enabled:
             self.log("⚠️ 활성화된 선박이 없습니다!")
         
-        # 종합 알람 전송 (처음 1회, 이후 4시간마다)
+        # 종합 알람 전송 (처음 1회, 이후 SUMMARY_INTERVAL_SECONDS마다)
         if summary_data and self.config.get('summary_alert', True):
             now = datetime.now()
             should_send = False
-            
+
             if not self.first_summary_sent:
-                # 처음 시작 시 1회
                 should_send = True
                 self.first_summary_sent = True
-                self.last_summary_time = now
-            elif self.last_summary_time is None:
+            elif self.last_summary_time and (now - self.last_summary_time).total_seconds() >= SUMMARY_INTERVAL_SECONDS:
                 should_send = True
-                self.last_summary_time = now
-            else:
-                # 4시간(14400초) 경과 시
-                elapsed = (now - self.last_summary_time).total_seconds()
-                if elapsed >= 4 * 60 * 60:  # 4시간
-                    should_send = True
-                    self.last_summary_time = now
-            
+
             if should_send:
+                self.last_summary_time = now
                 self.send_summary_alert(summary_data, year)
         
         return all_available
@@ -804,36 +927,22 @@ class FishingBoatMonitor:
             boats = summary_data[date_str]
             month, day = date_str.split('/')
             lines.append(f"\n🗓️ <b>{month}월 {day}일</b>")
-            for item in boats:
-                # 새 형식: (boat_name, status, is_available)
-                if len(item) == 3:
-                    boat_name, status, is_available = item
-                else:
-                    # 이전 형식 호환
-                    boat_name, status = item
-                    is_available = True
-                
+            for boat_name, status, is_available in boats:
                 # 상태에서 남은인원/남은자리 숫자 추출
                 if is_available and ("남은인원" in status or "남은자리" in status):
-                    import re
                     match = re.search(r'(\d+)', status)
                     seats = match.group(1) + "자리" if match else "예약가능"
                 elif not is_available:
-                    seats = "예약마감"  # 예약 불가 = 모두 예약마감으로 통일
+                    seats = "예약마감"
                 else:
                     seats = status
-                
-                # 아이콘: 예약 가능 ✅, 불가 ❌
+
                 icon = "✅" if is_available else "❌"
                 lines.append(f"  └ {icon} {boat_name}: {seats}")
         
         message = '\n'.join(lines)
         self.notifier.send_message(message)
         self.log("📊 종합 알람 전송 완료")
-    
-    def check_thefishing_boat(self, boat: dict, year: str, month_days: dict):
-        """더피싱 선박 체크 (기존 check_boat 로직)"""
-        return self.check_boat(boat, year, month_days)
     
     def check_sunsang24_boat(self, boat: dict, year: str, month_days: dict):
         """선상24 선박 체크 - 모든 날짜의 상태 반환"""
@@ -847,80 +956,51 @@ class FishingBoatMonitor:
             if not days:
                 continue
             
-            # 선상24 URL 형식: {도메인}/ship/schedule_fleet/{YYYYMM}
-            schedule_url = f"{base_url}/ship/schedule_fleet/{year}{month}"
+            schedule_url = self.build_schedule_url(base_url, year, month)
             self.log(f"⛵ [{boat_name}] {month}월 체크 ({len(days)}일)...")
             
             try:
-                self.driver.get(schedule_url)
-                time.sleep(1.5)
-                
+                page_source = self._fetch_page(schedule_url)
+
                 for day in days:
-                    day_padded = str(day).zfill(2)
-                    date_id = f"d{year}-{month}-{day_padded}"  # 예: d2026-09-01
-                    
-                    is_available, status = self.check_sunsang24_availability(date_id)
-                    
-                    # 종합 알람용 데이터 수집 (모든 날짜)
-                    result_list.append((f"{month}/{day}", status, is_available))
-                    
+                    date_str = self._make_date_str(year, month, day)
+                    date_id = f"d{year}-{month}-{str(day).zfill(2)}"  # 예: d2026-09-01
+
+                    is_available, status = self.check_sunsang24_availability(page_source, date_id)
+                    self._record_result(result_list, month, day, status, is_available, "예약마감")
+
                     if is_available:
-                        self.log(f"  🎉 {month}/{day}: ✅ {status}")
-                        
-                        date_str = f"{year}{month}{day_padded}"
-                        alert_key = f"{boat_name}-{date_str}"
-                        if alert_key not in self.alerted_dates:
-                            reserve_url = schedule_url
-                            
-                            if self.notifier.send_cancellation_alert(
-                                boat_name=boat_name,
-                                date=f"{year}년 {month}월 {day}일",
-                                url=reserve_url,
-                                status=status
-                            ):
-                                self.log(f"  📱 텔레그램 알림 전송!")
-                                self.alerted_dates.add(alert_key)
-                            
-                            # 자동예약 모드인 경우 봇 실행
-                            if boat.get('mode') == 'reserve':
-                                self.run_auto_reserve(boat, date_str, 'sunsang24')
-                    else:
-                        if "예약마감" not in status:
-                            self.log(f"  📅 {month}/{day}: ❌ {status}")
+                        self._handle_available(boat, year, month, day, date_str, status, schedule_url, 'sunsang24')
                             
             except Exception as e:
-                if self.is_critical_error(e):
-                    raise e
-                self.log(f"  ⚠️ [{boat_name}] 오류: {e}")
-        
+                self._handle_check_error(e, f"[{boat_name}]")
+
         return result_list
-    
-    def check_sunsang24_availability(self, date_id: str):
-        """선상24 날짜별 예약 가능 여부 체크"""
+
+    def check_sunsang24_availability(self, page_source: str, date_id: str):
+        """선상24 날짜별 예약 가능 여부 체크 (HTML 문자열 기반)"""
         try:
-            # 해당 날짜 테이블 찾기 (id="d2026-09-01")
-            date_tables = self.driver.find_elements(By.ID, date_id)
-            
-            if not date_tables:
+            soup = BeautifulSoup(page_source, 'html.parser')
+            date_element = soup.find(id=date_id)
+
+            if not date_element:
                 return False, "날짜없음"
-            
-            date_table = date_tables[0]
-            table_html = date_table.get_attribute('innerHTML')
-            
+
+            table_html = str(date_element)
+
             # "바로예약" 버튼이 있으면 예약 가능
             if 'btn_ship_reservation' in table_html and '바로예약' in table_html:
-                # 남은 자리 수 추출
                 remain_match = re.search(r'남은자리.*?(\d+)명', table_html, re.DOTALL)
                 if remain_match:
                     return True, f"남은자리 {remain_match.group(1)}명"
                 return True, "예약가능"
-            
+
             # "대기하기" 버튼 또는 "예약마감"이 있으면 예약 불가
             if 'btn_ship_reservation_awaiter' in table_html or '예약마감' in table_html:
                 return False, "예약마감"
-            
+
             return False, "정보없음"
-            
+
         except Exception as e:
             return False, f"오류: {e}"
     
@@ -929,53 +1009,73 @@ class FishingBoatMonitor:
         max_sec = self.config.get('check_interval_max', 10) * 60
         return random.randint(min_sec, max_sec)
     
+    def _handle_check_error(self, error: Exception, context: str):
+        """체크 중 발생한 예외 처리: 치명적이면 재raise, 아니면 로그"""
+        if self.is_critical_error(error):
+            raise error
+        self.log(f"  ⚠️ {context}: {error}")
+
+    def _close_session(self):
+        """현재 HTTP 세션 안전하게 닫기"""
+        try:
+            if self.session:
+                self.session.close()
+        except Exception:
+            pass
+
+    def _wait_interruptible(self, seconds: int, step: int = 1):
+        """is_running이 False가 되면 즉시 중단하는 대기"""
+        for _ in range(0, seconds, step):
+            if not self.is_running:
+                break
+            time.sleep(step)
+
+    def _handle_night_break(self):
+        """야간 브레이크 진입 여부 확인 및 대기 처리. 브레이크 대기했으면 True 반환."""
+        now = datetime.now()
+        hour, minute = now.hour, now.minute
+
+        # 브레이크 시작 조건: 23:50~23:59 또는 00:00~00:05
+        in_break_start = (hour == 23 and minute >= (50 + max(0, self._break_start_minute))) or \
+                         (hour == 0 and minute <= max(0, self._break_start_minute))
+        in_break_zone = (0 <= hour < 7) or in_break_start
+
+        if in_break_zone and not self._night_break_started:
+            self._night_break_started = True
+            wake_hour, wake_min = divmod(6 * 60 + self._break_end_minute, 60)
+            self.log(f"🌙 야간 브레이크 시작! {wake_hour:02d}:{wake_min:02d}까지 대기...")
+
+        if not self._night_break_started:
+            return False
+
+        # 기상 시간까지 1분 간격으로 대기
+        wake_total = 6 * 60 + self._break_end_minute  # 06:50~07:05
+        while self.is_running:
+            total_minutes = datetime.now().hour * 60 + datetime.now().minute
+            if total_minutes >= wake_total:
+                break
+            time.sleep(60)
+
+        self._night_break_started = False
+        self._break_start_minute = random.randint(*NIGHT_BREAK_START_RANGE)
+        self._break_end_minute = random.randint(*NIGHT_BREAK_END_RANGE)
+        self.log(f"☀️ 모닝 브레이크 종료! 모니터링 재개")
+        return True
+
     def run(self):
         self.is_running = True
-        
+
         try:
-            self.setup_driver()
-            
+            self.build_session()
+
             check_count = 0
-            
+
             while self.is_running:
-                # 야간 브레이크 타임 체크 (랜덤: 23:50~00:05 시작 → 05:05~05:10 종료)
-                now = datetime.now()
-                current_hour = now.hour
-                current_minute = now.minute
-                
-                # 랜덤 브레이크 시작 (23:50 ~ 00:05 사이)
-                if not hasattr(self, '_night_break_started'):
-                    self._night_break_started = False
-                    self._break_start_minute = random.randint(-10, 5)  # 23:50 ~ 00:05
-                    self._break_end_minute = random.randint(50, 65)    # 06:50 ~ 07:05
-                
-                # 브레이크 시작 조건: 23:50~23:59 또는 00:00~00:05
-                in_break_start = (current_hour == 23 and current_minute >= (50 + max(0, self._break_start_minute))) or \
-                                 (current_hour == 0 and current_minute <= max(0, self._break_start_minute))
-                in_break_zone = (0 <= current_hour < 7) or in_break_start
-                
-                if in_break_zone and not self._night_break_started:
-                    self._night_break_started = True
-                    wake_hour = 6 if self._break_end_minute < 60 else 7
-                    wake_min = self._break_end_minute if self._break_end_minute < 60 else self._break_end_minute - 60
-                    self.log(f"🌙 야간 브레이크 시작! {wake_hour:02d}:{wake_min:02d}까지 대기...")
-                
-                if self._night_break_started:
-                    wake_minute = self._break_end_minute
-                    while self.is_running:
-                        now = datetime.now()
-                        total_minutes = now.hour * 60 + now.minute
-                        wake_total = 6 * 60 + wake_minute  # 06:50~07:05
-                        if total_minutes >= wake_total:
-                            break
-                        time.sleep(60)
-                    if not self.is_running:
-                        break
-                    self._night_break_started = False
-                    self._break_start_minute = random.randint(-10, 5)  # 다음 날 랜덤 재설정
-                    self._break_end_minute = random.randint(50, 65)    # 06:50 ~ 07:05
-                    self.log(f"☀️ 모닝 브레이크 종료! 모니터링 재개")
-                
+                # 야간 브레이크 체크
+                self._handle_night_break()
+                if not self.is_running:
+                    break
+
                 check_count += 1
                 self.log(f"\n{'='*50}")
                 self.log(f"🔍 [{check_count}번째 체크] {datetime.now().strftime('%H:%M:%S')}")
@@ -991,14 +1091,10 @@ class FishingBoatMonitor:
                 except Exception as e:
                     self.log(f"⚠️ 체크 중 오류: {e}")
                     if self.is_critical_error(e):
-                        self.log("🔄 브라우저 연결 끊김 감지! 드라이버를 재시작합니다...")
-                        try:
-                            if self.driver:
-                                self.driver.quit()
-                        except:
-                            pass
+                        self.log("🔄 HTTP 연결 오류 감지! 세션을 재생성합니다...")
+                        self._close_session()
                         time.sleep(3)
-                        self.setup_driver()
+                        self.build_session()
                 
                 if not self.is_running:
                     break
@@ -1007,20 +1103,13 @@ class FishingBoatMonitor:
                 next_time = datetime.now() + timedelta(seconds=interval)
                 self.log(f"⏰ 다음 체크: {next_time.strftime('%H:%M:%S')} ({interval//60}분 {interval%60}초 후)")
                 
-                for _ in range(interval):
-                    if not self.is_running:
-                        break
-                    time.sleep(1)
+                self._wait_interruptible(interval)
         
         except Exception as e:
             self.log(f"🚨 오류 발생: {e}")
         
         finally:
-            if self.driver:
-                try:
-                    self.driver.quit()
-                except:
-                    pass
+            self._close_session()
             self.log("🛑 모니터링 종료")
     
     def stop(self):
@@ -1035,17 +1124,24 @@ class FishingBoatMonitorApp:
         self.root = root
         self.root.title("🎣 낚시배 취소석 모니터 v2.0")
         
-        w, h = 710, 1200
+        w, h = 1080, 1200
         ws = root.winfo_screenwidth()
         hs = root.winfo_screenheight()
-        x = (ws/2) - (w/2)
-        y = (hs/2) - (h/2)
+        x = (ws / 2) - (w / 2)
+        y = max(0, (hs / 2) - (h / 2))
         root.geometry('%dx%d+%d+%d' % (w, h, x, y))
+        root.minsize(980, 780)
         
         self.config = self.load_config()
         self.monitor = None
         self.monitor_thread = None
-        
+
+        # 위젯 초기화 전 None 세팅 (create_widgets 내부 호출 순서 의존 방지)
+        self.btn_select_all = None
+        self.lbl_boat_status = None
+        self.preset_combo = None
+        self.tray_icon = None
+
         self.create_widgets()
     
     def load_config(self):
@@ -1059,11 +1155,11 @@ class FishingBoatMonitorApp:
                     
                     # Update scalar values and settings
                     for k, v in file_data.items():
-                        if k not in ['thefishing_boats', 'sunsang24_boats']:
+                        if k not in PLATFORM_KEYS:
                             config[k] = v
-                    
+
                     # Merge Boat Lists (Preserve user settings, add new code-defined boats)
-                    for platform in ['thefishing_boats', 'sunsang24_boats']:
+                    for platform in PLATFORM_KEYS:
                         file_boats = file_data.get(platform, [])
                         default_boats = config.get(platform, []) # These are from DEFAULT_CONFIG via deepcopy
                         
@@ -1082,7 +1178,6 @@ class FishingBoatMonitorApp:
                         config[platform] = merged_list
             except Exception as e:
                 print(f"Config load error: {e}")
-                pass
         
         return config
     
@@ -1098,8 +1193,6 @@ class FishingBoatMonitorApp:
         
         self.config['check_interval_min'] = int(self.entry_min_interval.get())
         self.config['check_interval_max'] = int(self.entry_max_interval.get())
-        self.config['headless_mode'] = self.var_headless.get()
-        
         # 자동예약 정보 저장
         self.config['reserve_name'] = self.entry_reserve_name.get()
         self.config['reserve_phone'] = self.entry_reserve_phone.get()
@@ -1110,11 +1203,10 @@ class FishingBoatMonitorApp:
         # 선박 목록은 이미 config에 직접 업데이트 됨
         # (버튼 클릭 시 boats[idx]['enabled'] 변경)
         
-        with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
-            json.dump(self.config, f, indent=4, ensure_ascii=False)
-        
+        self.save_config_quietly()
+
         total_days = sum(len(days) for days in self.month_days.values())
-        total_boats = len(self.config.get('thefishing_boats', [])) + len(self.config.get('sunsang24_boats', []))
+        total_boats = sum(len(self.config.get(pk, [])) for pk in PLATFORM_KEYS)
         self.log_msg(f"💾 설정 저장 완료 (총 {total_days}개 날짜, 선박: {total_boats}개)")
         return self.config
     
@@ -1123,38 +1215,31 @@ class FishingBoatMonitorApp:
         try:
             with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
                 json.dump(self.config, f, indent=4, ensure_ascii=False)
-        except:
+        except Exception:
             pass
     
     # ========== 프리셋 관련 함수 ==========
-    def get_presets_file(self):
-        """프리셋 저장 파일 경로"""
-        return 'boat_presets.json'
-    
     def load_presets(self):
         """저장된 프리셋 목록 불러오기"""
-        presets_file = self.get_presets_file()
-        if os.path.exists(presets_file):
+        if os.path.exists(PRESETS_FILE):
             try:
-                with open(presets_file, 'r', encoding='utf-8') as f:
+                with open(PRESETS_FILE, 'r', encoding='utf-8') as f:
                     return json.load(f)
-            except:
+            except Exception:
                 return {}
         return {}
-    
+
     def save_presets(self, presets):
         """프리셋 목록 저장"""
-        with open(self.get_presets_file(), 'w', encoding='utf-8') as f:
+        with open(PRESETS_FILE, 'w', encoding='utf-8') as f:
             json.dump(presets, f, indent=2, ensure_ascii=False)
     
     def refresh_preset_list(self):
         """프리셋 드롭다운 목록 새로고침"""
         presets = self.load_presets()
         preset_names = list(presets.keys())
-        if hasattr(self, 'preset_combo'):
+        if self.preset_combo:
             self.preset_combo['values'] = preset_names
-            if preset_names:
-                self.preset_var.set('')
     
     def save_preset(self):
         """현재 선택된 선박들을 프리셋으로 저장 (두 플랫폼 + 날짜)"""
@@ -1164,38 +1249,37 @@ class FishingBoatMonitorApp:
             return
         
         # 두 플랫폼의 활성화된 선박들 수집
-        thefishing_boats = self.config.get('thefishing_boats', [])
-        sunsang24_boats = self.config.get('sunsang24_boats', [])
-        
-        # 활성화된 선박들 수집 (mode 포함)
-        enabled_thefishing = [{'name': b['name'], 'mode': b.get('mode', 'monitor')} 
-                              for b in thefishing_boats if b.get('enabled', False)]
-        enabled_sunsang24 = [{'name': b['name'], 'mode': b.get('mode', 'monitor')} 
-                             for b in sunsang24_boats if b.get('enabled', False)]
-        
-        total_enabled = len(enabled_thefishing) + len(enabled_sunsang24)
-        
+        enabled_by_platform = {}
+        for platform_key in PLATFORM_KEYS:
+            boats = self.config.get(platform_key, [])
+            enabled_by_platform[platform_key] = [
+                {'name': b['name'], 'mode': b.get('mode', 'monitor')}
+                for b in boats if b.get('enabled', False)
+            ]
+
+        total_enabled = sum(len(v) for v in enabled_by_platform.values())
+
         if total_enabled == 0:
             messagebox.showwarning("경고", "선택된 선박이 없습니다!")
             return
-        
+
         # 프리셋 저장 (두 플랫폼 + 날짜 + mode)
         presets = self.load_presets()
-        presets[preset_name] = {
-            'thefishing_boats': enabled_thefishing,
-            'sunsang24_boats': enabled_sunsang24,
+        preset_data = {
             'target_year': self.entry_year.get(),
-            'target_days': dict(self.month_days)  # 월별 날짜 저장
+            'target_days': dict(self.month_days),
         }
+        preset_data.update(enabled_by_platform)
+        presets[preset_name] = preset_data
         self.save_presets(presets)
-        
+
         # 드롭다운 업데이트
         self.refresh_preset_list()
         self.preset_var.set(preset_name)
-        
-        total_days = sum(len(days) for days in self.month_days.values())
-        self.log_msg(f"💾 프리셋 저장: '{preset_name}' (더피싱:{len(enabled_thefishing)}개, 선상24:{len(enabled_sunsang24)}개, 날짜:{total_days}개)")
-        messagebox.showinfo("저장 완료", f"프리셋 '{preset_name}'이(가) 저장되었습니다.\n(더피싱:{len(enabled_thefishing)}개, 선상24:{len(enabled_sunsang24)}개, 날짜:{total_days}개)")
+
+        stats = self._preset_stats()
+        self.log_msg(f"💾 프리셋 저장: '{preset_name}' ({stats})")
+        messagebox.showinfo("저장 완료", f"프리셋 '{preset_name}'이(가) 저장되었습니다.\n({stats})")
     
     def load_preset(self, event=None):
         """선택된 프리셋 불러오기 (두 플랫폼 + 날짜)"""
@@ -1211,16 +1295,10 @@ class FishingBoatMonitorApp:
         
         # 이전 버전 호환 (단일 플랫폼 형식)
         if 'platform' in preset:
-            platform = preset.get('platform', 'thefishing')
+            old_platform = preset.get('platform', 'thefishing')
             enabled_boats = preset.get('boats', [])
-            preset = {
-                'thefishing_boats': enabled_boats if platform == 'thefishing' else [],
-                'sunsang24_boats': enabled_boats if platform == 'sunsang24' else []
-            }
-        
-        enabled_thefishing = preset.get('thefishing_boats', [])
-        enabled_sunsang24 = preset.get('sunsang24_boats', [])
-        
+            preset = {pk: enabled_boats if pk == f'{old_platform}_boats' else [] for pk in PLATFORM_KEYS}
+
         # 프리셋 데이터에서 이름→mode 매핑 생성 (새 형식/이전 형식 호환)
         def get_mode_map(preset_data):
             mode_map = {}
@@ -1230,29 +1308,17 @@ class FishingBoatMonitorApp:
                 else:
                     mode_map[item] = 'monitor'  # 이전 형식 (이름만)
             return mode_map
-        
-        tf_mode_map = get_mode_map(enabled_thefishing)
-        ss_mode_map = get_mode_map(enabled_sunsang24)
-        
-        # 더피싱 선박 처리
-        thefishing_boats = self.config.get('thefishing_boats', [])
-        for boat in thefishing_boats:
-            if boat['name'] in tf_mode_map:
-                boat['enabled'] = True
-                boat['mode'] = tf_mode_map[boat['name']]
-            else:
-                boat['enabled'] = False
-                boat['mode'] = 'off'
-        
-        # 선상24 선박 처리
-        sunsang24_boats = self.config.get('sunsang24_boats', [])
-        for boat in sunsang24_boats:
-            if boat['name'] in ss_mode_map:
-                boat['enabled'] = True
-                boat['mode'] = ss_mode_map[boat['name']]
-            else:
-                boat['enabled'] = False
-                boat['mode'] = 'off'
+
+        # 플랫폼별 모드 매핑 적용
+        mode_maps = {pk: get_mode_map(preset.get(pk, [])) for pk in PLATFORM_KEYS}
+        for platform_key, mode_map in mode_maps.items():
+            for boat in self.config.get(platform_key, []):
+                if boat['name'] in mode_map:
+                    boat['enabled'] = True
+                    boat['mode'] = mode_map[boat['name']]
+                else:
+                    boat['enabled'] = False
+                    boat['mode'] = 'off'
         
         # 날짜 정보 불러오기
         if 'target_year' in preset:
@@ -1271,11 +1337,18 @@ class FishingBoatMonitorApp:
         # UI 업데이트
         self.refresh_boat_grid()
         
-        activated_tf = sum(1 for b in thefishing_boats if b.get('enabled'))
-        activated_ss = sum(1 for b in sunsang24_boats if b.get('enabled'))
-        total_days = sum(len(days) for days in self.month_days.values())
-        self.log_msg(f"📂 프리셋 로드: '{preset_name}' (더피싱:{activated_tf}개, 선상24:{activated_ss}개, 날짜:{total_days}개)")
+        self.log_msg(f"📂 프리셋 로드: '{preset_name}' ({self._preset_stats()})")
     
+    def _preset_stats(self) -> str:
+        """현재 프리셋 통계 문자열 (예: '더피싱:3개, 선상24:1개, 날짜:12개')"""
+        parts = [
+            f"{PLATFORM_KEY_NAMES[pk]}:{sum(1 for b in self.config.get(pk, []) if b.get('enabled'))}개"
+            for pk in PLATFORM_KEYS
+        ]
+        total_days = sum(len(days) for days in self.month_days.values())
+        parts.append(f"날짜:{total_days}개")
+        return ', '.join(parts)
+
     def delete_preset(self):
         """선택된 프리셋 삭제"""
         preset_name = self.preset_var.get()
@@ -1298,234 +1371,226 @@ class FishingBoatMonitorApp:
     def create_widgets(self):
         style = ttk.Style()
         style.configure('TLabel', font=('맑은 고딕', 10))
-        style.configure('TButton', font=('맑은 고딕', 10, 'bold'))
-        
-        main_frame = ttk.Frame(self.root, padding="10")
+        style.configure('TButton', font=('맑은 고딕', 10))
+        style.configure('TLabelframe.Label', font=('맑은 고딕', 10, 'bold'))
+
+        main_frame = ttk.Frame(self.root, padding="8")
         main_frame.pack(fill=tk.BOTH, expand=True)
-        
-        # 1. 선박 관리
-        boat_frame = ttk.Labelframe(main_frame, text="🚢 선박 관리", padding="5", bootstyle="info")
-        boat_frame.pack(fill=tk.X, pady=5)
-        
-        # 플랫폼 선택 버튼
+
+        self._create_boat_section(main_frame)
+        self._create_target_section(main_frame)
+        self._create_reserve_section(main_frame)
+        self._create_interval_section(main_frame)
+        self._create_action_buttons(main_frame)
+        self._create_log_section(main_frame)
+
+    # ---------- GUI 섹션별 빌더 ----------
+
+    def _create_boat_section(self, parent):
+        """🚢 선박 관리 섹션"""
+        boat_frame = ttk.Labelframe(parent, text="🚢 선박 관리", padding="8", bootstyle="info")
+        boat_frame.pack(fill=tk.X, pady=(5, 3))
+
+        # ── 플랫폼 선택 행 ──
         platform_row = ttk.Frame(boat_frame)
-        platform_row.pack(fill=tk.X, pady=2)
-        
-        ttk.Label(platform_row, text="플랫폼:").pack(side=tk.LEFT, padx=2)
-        
-        current_platform = self.config.get('current_platform', 'thefishing')
-        
-        self.btn_thefishing = tk.Button(
-            platform_row, text="더피싱", width=10,
-            bg='#4CAF50' if current_platform == 'thefishing' else 'SystemButtonFace',
-            fg='white' if current_platform == 'thefishing' else 'black',
-            command=lambda: self.switch_platform('thefishing')
-        )
-        self.btn_thefishing.pack(side=tk.LEFT, padx=2)
-        
-        self.btn_sunsang24 = tk.Button(
-            platform_row, text="선상24", width=10,
-            bg='#4CAF50' if current_platform == 'sunsang24' else 'SystemButtonFace',
-            fg='white' if current_platform == 'sunsang24' else 'black',
-            command=lambda: self.switch_platform('sunsang24')
-        )
-        self.btn_sunsang24.pack(side=tk.LEFT, padx=2)
-        
-        # 선박 버튼 그리드 (6열 x 10행)
+        platform_row.pack(fill=tk.X, pady=(0, 4))
+        ttk.Label(platform_row, text="플랫폼:", font=('맑은 고딕', 10, 'bold')).pack(side=tk.LEFT, padx=(0, 6))
+
+        for key, name in PLATFORM_NAMES.items():
+            bg, fg = _toggle_colors(self.current_platform == key)
+            btn = tk.Button(
+                platform_row, text=name, width=8,
+                bg=bg, fg=fg, font=('맑은 고딕', 10, 'bold'),
+                relief='groove', cursor='hand2',
+                command=lambda k=key: self.switch_platform(k)
+            )
+            btn.pack(side=tk.LEFT, padx=2)
+            setattr(self, f'btn_{key}', btn)
+
+        # 선사 편집 버튼 (플랫폼 버튼과 동일 크기)
+        tk.Button(
+            platform_row, text="편집", width=8,
+            font=('맑은 고딕', 10, 'bold'), relief='groove', cursor='hand2',
+            command=self.open_boat_editor
+        ).pack(side=tk.LEFT, padx=(6, 2))
+
+        # ── 선박 버튼 그리드 ──
         grid_frame = ttk.Frame(boat_frame)
-        grid_frame.pack(fill=tk.X, pady=5)
-        
-        self.boat_buttons = {}  # {boat_name: button}
-        self.selected_boat = None  # 현재 선택된 선박 (사이트가기용)
-        
-        # 선박 관리 버튼
-        btn_row = ttk.Frame(boat_frame)
-        btn_row.pack(fill=tk.X, pady=2)
-        
-        self.btn_select_all = tk.Button(btn_row, text="☑ 전체선택", command=self.toggle_all_boats, width=10, bg='SystemButtonFace', fg='black')
+        grid_frame.pack(fill=tk.X, pady=4)
+        for c in range(10):
+            grid_frame.columnconfigure(c, weight=1, uniform='boat_col')
+        self.boat_buttons = {}
+        self.selected_boat = None
+
+        # ── 선박 컨트롤 행 1: 전체선택 + 사이트가기 + 월 ──
+        ctrl_row1 = ttk.Frame(boat_frame)
+        ctrl_row1.pack(fill=tk.X, pady=(2, 0))
+
+        self.btn_select_all = tk.Button(
+            ctrl_row1, text="☑ 전체선택", command=self.toggle_all_boats,
+            width=10, bg='SystemButtonFace', fg='black',
+            font=('맑은 고딕', 9), relief='groove', cursor='hand2'
+        )
         self.btn_select_all.pack(side=tk.LEFT, padx=2)
-        ttk.Button(btn_row, text="🌐 사이트가기", command=self.open_boat_site, width=12).pack(side=tk.LEFT, padx=2)
-        
+        ttk.Button(ctrl_row1, text="🌐 사이트가기", command=self.open_boat_site, width=12).pack(side=tk.LEFT, padx=2)
+
         # 월 선택 버튼 (사이트가기용)
-        ttk.Label(btn_row, text="  ").pack(side=tk.LEFT)
-        
+        ttk.Label(ctrl_row1, text="  ").pack(side=tk.LEFT)
         self.selected_site_month = tk.StringVar(value="09")
         self.month_buttons = {}
-        
-        for m in [9, 10, 11]:
+        for m in MONITOR_MONTHS:
             month_str = f"{m:02d}"
+            bg, fg = _toggle_colors(m == 9)
             btn = tk.Button(
-                btn_row, 
-                text=f"{m}월", 
-                width=4,
-                bg="#4CAF50" if m == 9 else "SystemButtonFace",
-                fg="white" if m == 9 else "black",
+                ctrl_row1, text=f"{m}월", width=4,
+                bg=bg, fg=fg, font=('맑은 고딕', 9),
+                relief='groove', cursor='hand2',
                 command=lambda ms=month_str: self.select_site_month(ms)
             )
             btn.pack(side=tk.LEFT, padx=1)
             self.month_buttons[month_str] = btn
-        
-        # 프리셋 저장/불러오기 UI
-        # 프리셋 드롭다운
+
+        # ── 선박 컨트롤 행 2: 프리셋 ──
+        ctrl_row2 = ttk.Frame(boat_frame)
+        ctrl_row2.pack(fill=tk.X, pady=(4, 0))
+
+        ttk.Label(ctrl_row2, text="프리셋:", font=('맑은 고딕', 9)).pack(side=tk.LEFT, padx=(2, 4))
         self.preset_var = tk.StringVar()
-        self.preset_combo = ttk.Combobox(btn_row, textvariable=self.preset_var, width=15, state='readonly')
-        self.preset_combo.pack(side=tk.LEFT, padx=(5,2))
+        self.preset_combo = ttk.Combobox(ctrl_row2, textvariable=self.preset_var, width=18, state='readonly')
+        self.preset_combo.pack(side=tk.LEFT, padx=(0, 4))
         self.preset_combo.bind('<<ComboboxSelected>>', self.load_preset)
         self.refresh_preset_list()
-        
-        # 프리셋 이름 입력
-        self.entry_preset_name = ttk.Entry(btn_row, width=15)
+
+        self.entry_preset_name = ttk.Entry(ctrl_row2, width=16)
         self.entry_preset_name.pack(side=tk.LEFT, padx=2)
         self.entry_preset_name.insert(0, "프리셋 이름")
         self.entry_preset_name.bind('<FocusIn>', lambda e: self.entry_preset_name.delete(0, tk.END) if self.entry_preset_name.get() == "프리셋 이름" else None)
-        
-        # 저장 버튼
-        ttk.Button(btn_row, text="💾저장", command=self.save_preset, width=6).pack(side=tk.LEFT, padx=2)
-        ttk.Button(btn_row, text="🗑", command=self.delete_preset, width=3).pack(side=tk.LEFT, padx=1)
-        
-        # 선박 버튼 그리드 생성
+        ttk.Button(ctrl_row2, text="💾 저장", command=self.save_preset, width=7).pack(side=tk.LEFT, padx=2)
+        ttk.Button(ctrl_row2, text="🗑 삭제", command=self.delete_preset, width=7).pack(side=tk.LEFT, padx=2)
+
         self.grid_frame = grid_frame
         self.refresh_boat_grid()
-        
-        # 3. 모니터링 대상 설정
-        target_frame = ttk.Labelframe(main_frame, text="🎯 모니터링 대상", padding="5", bootstyle="primary")
-        target_frame.pack(fill=tk.X, pady=5)
-        
+
+    def _create_target_section(self, parent):
+        """🎯 모니터링 대상 섹션"""
+        target_frame = ttk.Labelframe(parent, text="🎯 모니터링 대상", padding="8", bootstyle="primary")
+        target_frame.pack(fill=tk.X, pady=(3, 3))
+
+        # 년도 + 월별 캘린더 + 선사 수 — 한 줄로
         date_row = ttk.Frame(target_frame)
         date_row.pack(fill=tk.X, pady=2)
-        
-        ttk.Label(date_row, text="년도:").pack(side=tk.LEFT, padx=5)
+
+        ttk.Label(date_row, text="년도:", font=('맑은 고딕', 10, 'bold')).pack(side=tk.LEFT, padx=(0, 4))
         self.entry_year = ttk.Entry(date_row, width=6)
         self.entry_year.insert(0, self.config.get('target_year', '2026'))
-        self.entry_year.pack(side=tk.LEFT, padx=2)
-        
-        # 월별 캘린더 버튼 (9~11월)
-        month_row = ttk.Frame(target_frame)
-        month_row.pack(fill=tk.X, pady=5)
-        
-        ttk.Label(month_row, text="날짜 선택:").pack(side=tk.LEFT, padx=5)
-        
-        # 월별 선택 날짜 저장 (딕셔너리)
-        self.month_days = self.config.get('target_days', {"09": [], "10": [], "11": []})
-        if isinstance(self.month_days, list):  # 이전 버전 호환
+        self.entry_year.pack(side=tk.LEFT, padx=(0, 12))
+
+        # 월별 캘린더 버튼
+        ttk.Label(date_row, text="날짜:", font=('맑은 고딕', 10, 'bold')).pack(side=tk.LEFT, padx=(0, 4))
+
+        self.month_days = self.config.get('target_days', dict(EMPTY_MONTH_DAYS))
+        if isinstance(self.month_days, list):
             self.month_days = {"09": self.month_days, "10": [], "11": []}
-        
+
         self.month_labels = {}
-        
-        for month in [9, 10, 11]:
+        for month in MONITOR_MONTHS:
             month_str = f"{month:02d}"
-            btn_frame = ttk.Frame(month_row)
-            btn_frame.pack(side=tk.LEFT, padx=5)
-            
-            # 월 버튼
-            btn = ttk.Button(
-                btn_frame, 
-                text=f"📅 {month}월", 
-                command=lambda m=month: self.open_calendar(m)
-            )
-            btn.pack(side=tk.TOP)
-            
-            # 선택된 날짜 수 표시
+            btn_frame = ttk.Frame(date_row)
+            btn_frame.pack(side=tk.LEFT, padx=3)
+            ttk.Button(btn_frame, text=f"📅 {month}월",
+                       command=lambda m=month: self.open_calendar(m)).pack(side=tk.TOP)
             days_count = len(self.month_days.get(month_str, []))
-            lbl = ttk.Label(btn_frame, text=f"{days_count}개", foreground="blue")
+            lbl = ttk.Label(btn_frame, text=f"{days_count}개", foreground="#5bc0de")
             lbl.pack(side=tk.TOP)
             self.month_labels[month_str] = lbl
-        
-        # 활성화된 선사 수 표시 라벨
-        ttk.Label(month_row, text="    ").pack(side=tk.LEFT)  # 간격
-        self.lbl_boat_status = tk.Label(month_row, text="🚢 더피싱 0/0 │ 선상24 0/0", fg="green", font=('맑은 고딕', 11))
-        self.lbl_boat_status.pack(side=tk.LEFT, padx=10)
-        
-        # 선택된 날짜 요약
-        summary_row = ttk.Frame(target_frame)
-        summary_row.pack(fill=tk.X, pady=2)
-        
-        self.lbl_days_summary = ttk.Label(summary_row, text=self.get_days_summary(), 
-                                          foreground="gray", wraplength=600)
-        self.lbl_days_summary.pack(anchor='w', padx=5)
-        
-        # 3.5 자동예약 정보 (빨간색 선사용)
-        reserve_frame = ttk.Labelframe(main_frame, text="🔴 자동예약 정보", padding="5", bootstyle="danger")
-        reserve_frame.pack(fill=tk.X, pady=5)
-        
+
+        # 활성화된 선사 수 표시
+        initial_status = ' │ '.join(f"{n} 0/0" for n in PLATFORM_NAMES.values())
+        self.lbl_boat_status = tk.Label(date_row, text=f"🚢 {initial_status}",
+                                        fg="#5bc0de", font=('맑은 고딕', 10, 'bold'))
+        self.lbl_boat_status.pack(side=tk.RIGHT, padx=5)
+
+        # 날짜 요약
+        self.lbl_days_summary = ttk.Label(target_frame, text=self.get_days_summary(),
+                                          foreground="gray", wraplength=800)
+        self.lbl_days_summary.pack(anchor='w', padx=5, pady=(2, 0))
+
+    def _create_reserve_section(self, parent):
+        """🔴 자동예약 정보 섹션"""
+        reserve_frame = ttk.Labelframe(parent, text="🔴 자동예약 정보", padding="8", bootstyle="danger")
+        reserve_frame.pack(fill=tk.X, pady=(3, 3))
+
         reserve_row = ttk.Frame(reserve_frame)
         reserve_row.pack(fill=tk.X, pady=2)
-        
+
         ttk.Label(reserve_row, text="예약자명:").pack(side=tk.LEFT, padx=5)
         self.entry_reserve_name = ttk.Entry(reserve_row, width=10)
         self.entry_reserve_name.insert(0, self.config.get('reserve_name', ''))
         self.entry_reserve_name.pack(side=tk.LEFT, padx=2)
-        
+
         ttk.Label(reserve_row, text="전화번호:").pack(side=tk.LEFT, padx=5)
         self.entry_reserve_phone = ttk.Entry(reserve_row, width=13)
         self.entry_reserve_phone.insert(0, self.config.get('reserve_phone', ''))
         self.entry_reserve_phone.pack(side=tk.LEFT, padx=2)
-        
+
         ttk.Label(reserve_row, text="인원:").pack(side=tk.LEFT, padx=5)
         self.entry_reserve_count = ttk.Entry(reserve_row, width=3)
         self.entry_reserve_count.insert(0, str(self.config.get('reserve_count', 1)))
         self.entry_reserve_count.pack(side=tk.LEFT, padx=2)
         ttk.Label(reserve_row, text="명").pack(side=tk.LEFT)
-        
-        # 4. 체크 간격 설정
-        interval_frame = ttk.Labelframe(main_frame, text="⏰ 체크 간격", padding="5", bootstyle="warning")
-        interval_frame.pack(fill=tk.X, pady=5)
-        
+
+    def _create_interval_section(self, parent):
+        """⏰ 체크 간격 + 옵션 체크박스 섹션"""
+        interval_frame = ttk.Labelframe(parent, text="⏰ 체크 간격", padding="8", bootstyle="warning")
+        interval_frame.pack(fill=tk.X, pady=(3, 3))
+
         interval_row = ttk.Frame(interval_frame)
         interval_row.pack(fill=tk.X, pady=2)
-        
+
         ttk.Label(interval_row, text="최소:").pack(side=tk.LEFT, padx=5)
         self.entry_min_interval = ttk.Entry(interval_row, width=4)
         self.entry_min_interval.insert(0, str(self.config.get('check_interval_min', 8)))
         self.entry_min_interval.pack(side=tk.LEFT, padx=2)
         ttk.Label(interval_row, text="분").pack(side=tk.LEFT)
-        
+
         ttk.Label(interval_row, text="   최대:").pack(side=tk.LEFT, padx=5)
         self.entry_max_interval = ttk.Entry(interval_row, width=4)
         self.entry_max_interval.insert(0, str(self.config.get('check_interval_max', 10)))
         self.entry_max_interval.pack(side=tk.LEFT, padx=2)
         ttk.Label(interval_row, text="분").pack(side=tk.LEFT)
-        
-        # 체크박스들 (헤드리스, Test모드, 종합알람)
+
         checkbox_row = ttk.Frame(interval_frame)
         checkbox_row.pack(fill=tk.X, pady=2)
-        
-        self.var_headless = tk.BooleanVar(value=self.config.get('headless_mode', True))
-        ttk.Checkbutton(checkbox_row, text="👻 헤드리스",
-                        variable=self.var_headless, bootstyle="info-round-toggle").pack(side=tk.LEFT, padx=5)
-
         self.var_test_mode = tk.BooleanVar(value=self.config.get('test_mode', True))
         ttk.Checkbutton(checkbox_row, text="🧪 Test모드",
                         variable=self.var_test_mode, bootstyle="warning-round-toggle").pack(side=tk.LEFT, padx=5)
-
         self.var_summary_alert = tk.BooleanVar(value=self.config.get('summary_alert', True))
         ttk.Checkbutton(checkbox_row, text="📊 종합알람",
                         variable=self.var_summary_alert, bootstyle="success-round-toggle").pack(side=tk.LEFT, padx=5)
-        
-        # 5. 버튼
-        btn_frame = ttk.Frame(main_frame)
-        btn_frame.pack(fill=tk.X, pady=10)
-        
-        ttk.Button(btn_frame, text="💾 설정 저장", command=self.save_config, width=20, bootstyle="secondary").pack(side=tk.LEFT, padx=5)
 
-        self.btn_start = ttk.Button(btn_frame, text="🚀 시작", command=self.start_monitor, width=15, bootstyle="success")
-        self.btn_start.pack(side=tk.LEFT, padx=5)
+    def _create_action_buttons(self, parent):
+        """시작/중지/저장 버튼 섹션"""
+        btn_frame = ttk.Frame(parent)
+        btn_frame.pack(fill=tk.X, pady=(6, 4))
 
-        self.btn_stop = ttk.Button(btn_frame, text="🛑 중지", command=self.stop_monitor, state="disabled", width=15, bootstyle="danger")
-        self.btn_stop.pack(side=tk.LEFT, padx=5)
-
-        # 숨김 버튼 (트레이로)
+        ttk.Button(btn_frame, text="💾 설정 저장", command=self.save_config, width=18, bootstyle="secondary").pack(side=tk.LEFT, padx=4, ipady=2)
+        self.btn_start = ttk.Button(btn_frame, text="🚀 시작", command=self.start_monitor, width=18, bootstyle="success")
+        self.btn_start.pack(side=tk.LEFT, padx=4, ipady=2)
+        self.btn_stop = ttk.Button(btn_frame, text="🛑 중지", command=self.stop_monitor, state="disabled", width=18, bootstyle="danger")
+        self.btn_stop.pack(side=tk.LEFT, padx=4, ipady=2)
         if TRAY_AVAILABLE:
-            ttk.Button(btn_frame, text="👁️ 숨김", command=self.hide_to_tray, width=15, bootstyle="info-outline").pack(side=tk.LEFT, padx=5)
-        
-        # 6. 로그창
-        log_frame = ttk.Labelframe(main_frame, text="📝 모니터링 로그", padding="5", bootstyle="secondary")
-        log_frame.pack(fill=tk.BOTH, expand=True)
+            ttk.Button(btn_frame, text="👁️ 숨김", command=self.hide_to_tray, width=14, bootstyle="info-outline").pack(side=tk.LEFT, padx=4, ipady=2)
 
-        self.log_area = tk.Text(log_frame, height=25, state='disabled', font=("Consolas", 9),
-                                bg="#1e1e1e", fg="#d4d4d4", insertbackground="#d4d4d4")
+    def _create_log_section(self, parent):
+        """📝 로그창 섹션"""
+        log_frame = ttk.Labelframe(parent, text="📝 모니터링 로그", padding="5", bootstyle="secondary")
+        log_frame.pack(fill=tk.BOTH, expand=True, pady=(3, 0))
+
+        self.log_area = tk.Text(log_frame, height=30, state='disabled',
+                                font=("Consolas", 9), bg="#1a1a2e", fg="#e0e0e0",
+                                insertbackground="#e0e0e0", relief='flat', padx=8, pady=6)
         self.log_area.pack(fill=tk.BOTH, expand=True)
-        
+
         self.log_msg("=" * 50)
         self.log_msg("🎣 낚시배 취소석 모니터 v2.0")
         self.log_msg("=" * 50)
@@ -1566,7 +1631,7 @@ class FishingBoatMonitorApp:
     def get_days_summary(self):
         """선택된 날짜 요약 텍스트"""
         parts = []
-        for month in [9, 10, 11]:
+        for month in MONITOR_MONTHS:
             month_str = f"{month:02d}"
             days = self.month_days.get(month_str, [])
             if days:
@@ -1590,12 +1655,12 @@ class FishingBoatMonitorApp:
             messagebox.showwarning("경고", "선박명과 URL을 입력해주세요.")
             return
         
-        platform = self.config.get('current_platform', 'thefishing')
+        platform = self.current_platform
         
         try:
             parsed = urlparse(url)
             domain = f"{parsed.scheme}://{parsed.netloc}"
-            
+
             if platform == 'thefishing':
                 # 더피싱: PA_N_UID 필요
                 params = parse_qs(parsed.query)
@@ -1612,8 +1677,8 @@ class FishingBoatMonitorApp:
                     "base_url": base_url,
                     "pa_n_uid": pa_n_uid
                 }
-                self.log_msg(f"✅ [더피싱] 선박 추가: {name} (PA_N_UID: {pa_n_uid})")
-                
+                self.log_msg(f"✅ [{PLATFORM_NAMES[platform]}] 선박 추가: {name} (PA_N_UID: {pa_n_uid})")
+
             else:  # sunsang24
                 # 선상24: 도메인만 필요 (예: https://rkclgh.sunsang24.com)
                 boat = {
@@ -1621,7 +1686,7 @@ class FishingBoatMonitorApp:
                     "enabled": True,
                     "base_url": domain  # 도메인만 저장
                 }
-                self.log_msg(f"✅ [선상24] 선박 추가: {name} ({domain})")
+                self.log_msg(f"✅ [{PLATFORM_NAMES[platform]}] 선박 추가: {name} ({domain})")
             
             # 현재 플랫폼의 선박 목록에 추가
             boat_key = f"{platform}_boats"
@@ -1638,106 +1703,117 @@ class FishingBoatMonitorApp:
             messagebox.showerror("오류", f"URL 파싱 오류: {e}")
     
     def refresh_boat_grid(self):
-        """선박 버튼 그리드 새로고침"""
+        """선박 버튼 그리드 새로고침 (visible 보트만 표시)"""
         # 기존 버튼 모두 제거
         for widget in self.grid_frame.winfo_children():
             widget.destroy()
-        
+
         self.boat_buttons = {}
         boats = self.get_current_boats()
+
+        # visible 필터링: (원래 인덱스, boat) 쌍 유지
+        visible_boats = [
+            (orig_idx, boat) for orig_idx, boat in enumerate(boats)
+            if boat.get('visible', True)
+        ]
         enabled_count = 0
-        
-        # 8열 그리드 생성
-        cols = 8
-        for i, boat in enumerate(boats):
-            row = i // cols
-            col = i % cols
-            
+
+        # 10열 그리드 생성
+        cols = 10
+        for grid_pos, (orig_idx, boat) in enumerate(visible_boats):
+            row = grid_pos // cols
+            col = grid_pos % cols
+
             # 3상태 색상: off(회색), monitor(녹색), reserve(빨간색)
-            mode = boat.get('mode', 'off')
-            enabled = boat.get('enabled', False)
-            
-            if not enabled:
-                mode = 'off'
-            
-            if mode == 'monitor':
-                bg_color = '#4CAF50'  # 녹색 (모니터링만)
-                fg_color = 'white'
+            mode = boat.get('mode', 'off') if boat.get('enabled', False) else 'off'
+            bg_color, fg_color = MODE_COLORS.get(mode, MODE_COLORS['off'])
+            if mode != 'off':
                 enabled_count += 1
-            elif mode == 'reserve':
-                bg_color = '#F44336'  # 빨간색 (예약까지)
-                fg_color = 'white'
-                enabled_count += 1
-            else:  # off
-                bg_color = 'SystemButtonFace'
-                fg_color = 'black'
-            
+
             # 버튼 이름 (너무 길면 자르기)
             name = boat['name']
-            if len(name) > 7:
-                name = name[:6] + ".."
-            
+            if len(name) > 6:
+                name = name[:5] + ".."
+
             btn = tk.Button(
                 self.grid_frame,
                 text=name,
-                width=10,
+                width=8,
                 height=1,
                 bg=bg_color,
                 fg=fg_color,
-                font=('맑은 고딕', 10),
-                command=lambda idx=i: self.toggle_boat_by_index(idx)
+                font=('맑은 고딕', 9),
+                relief='groove',
+                borderwidth=1,
+                activebackground=bg_color,
+                cursor='hand2',
+                command=lambda idx=orig_idx: self.toggle_boat_by_index(idx)
             )
-            btn.grid(row=row, column=col, padx=2, pady=2)
-            
+            btn.grid(row=row, column=col, padx=1, pady=1, sticky='ew')
+
             # 우클릭으로 사이트가기용 선택
-            btn.bind('<Button-3>', lambda e, idx=i: self.select_boat_for_site(idx))
-            
+            btn.bind('<Button-3>', lambda e, idx=orig_idx: self.select_boat_for_site(idx))
+
             self.boat_buttons[boat['name']] = btn
-        
+
         # 전체선택 버튼 색상 업데이트
-        if hasattr(self, 'btn_select_all'):
-            if len(boats) > 0 and enabled_count == len(boats):
-                self.btn_select_all.config(bg='#4CAF50', fg='white')
-            else:
-                self.btn_select_all.config(bg='SystemButtonFace', fg='black')
-        
+        if self.btn_select_all:
+            all_on = len(visible_boats) > 0 and enabled_count == len(visible_boats)
+            bg, fg = _toggle_colors(all_on)
+            self.btn_select_all.config(bg=bg, fg=fg)
+
         # 활성화된 선사 수 라벨 업데이트
-        if hasattr(self, 'lbl_boat_status'):
-            tf_boats = self.config.get('thefishing_boats', [])
-            ss_boats = self.config.get('sunsang24_boats', [])
-            tf_enabled = sum(1 for b in tf_boats if b.get('enabled', False))
-            ss_enabled = sum(1 for b in ss_boats if b.get('enabled', False))
-            tf_total = len(tf_boats)
-            ss_total = len(ss_boats)
-            self.lbl_boat_status.config(text=f"🚢 더피싱 {tf_enabled}/{tf_total} │ 선상24 {ss_enabled}/{ss_total}")
+        if self.lbl_boat_status:
+            parts = []
+            for pk in PLATFORM_KEYS:
+                boats_list = self.config.get(pk, [])
+                visible = [b for b in boats_list if b.get('visible', True)]
+                enabled = sum(1 for b in visible if b.get('enabled', False))
+                name = PLATFORM_KEY_NAMES[pk]
+                parts.append(f"{name} {enabled}/{len(visible)}")
+            self.lbl_boat_status.config(text=f"🚢 {' │ '.join(parts)}")
     
+    @property
+    def current_platform(self) -> str:
+        """현재 선택된 플랫폼 키 (thefishing / sunsang24)"""
+        return self.config.get('current_platform', 'thefishing')
+
     def get_current_boats(self):
         """현재 플랫폼의 선박 목록 반환"""
-        platform = self.config.get('current_platform', 'thefishing')
-        if platform == 'thefishing':
-            return self.config.get('thefishing_boats', [])
-        else:
-            return self.config.get('sunsang24_boats', [])
+        return self.config.get(f'{self.current_platform}_boats', [])
     
     def switch_platform(self, platform):
         """플랫폼 전환"""
         self.config['current_platform'] = platform
-        
-        # 버튼 색상 업데이트
-        if platform == 'thefishing':
-            self.btn_thefishing.config(bg='#4CAF50', fg='white')
-            self.btn_sunsang24.config(bg='SystemButtonFace', fg='black')
-        else:
-            self.btn_thefishing.config(bg='SystemButtonFace', fg='black')
-            self.btn_sunsang24.config(bg='#4CAF50', fg='white')
-        
+
+        # 버튼 색상 업데이트 (데이터 구동)
+        for key in PLATFORM_NAMES:
+            btn = getattr(self, f'btn_{key}')
+            bg, fg = _toggle_colors(key == platform)
+            btn.config(bg=bg, fg=fg)
+
         # 그리드 새로고침
         self.selected_boat = None
         self.refresh_boat_grid()
-        
-        platform_name = "더피싱" if platform == 'thefishing' else "선상24"
-        self.log_msg(f"🔄 플랫폼 전환: {platform_name}")
-    
+
+        self.log_msg(f"🔄 플랫폼 전환: {PLATFORM_NAMES[platform]}")
+
+    def open_boat_editor(self):
+        """선사 편집 팝업 열기"""
+        platform = self.current_platform
+        boats_key = f'{platform}_boats'
+        boats = self.config.get(boats_key, [])
+
+        def on_editor_confirm(updated_boats):
+            self.config[boats_key] = updated_boats
+            self.refresh_boat_grid()
+            self.save_config_quietly()
+            visible_count = sum(1 for b in updated_boats if b.get('visible', True))
+            self.log_msg(f"✏️ {PLATFORM_NAMES[platform]} 선사 편집 완료: "
+                         f"{visible_count}/{len(updated_boats)}개 표시")
+
+        BoatEditorPopup(self.root, platform, boats, callback=on_editor_confirm)
+
     def toggle_boat_by_index(self, idx):
         """인덱스로 선박 상태 순환: off → monitor → reserve → off"""
         boats = self.get_current_boats()
@@ -1775,21 +1851,22 @@ class FishingBoatMonitorApp:
             self.log_msg(f"🎯 {boats[idx]['name']} 선택됨 (사이트가기)")
     
     def toggle_all_boats(self):
-        """전체 선박 ON/OFF 토글"""
+        """전체 선박 ON/OFF 토글 (visible 보트만 대상)"""
         boats = self.get_current_boats()
-        if not boats:
+        visible = [b for b in boats if b.get('visible', True)]
+        if not visible:
             return
-        
-        # 현재 ON인 선박이 있으면 전체 OFF, 없으면 전체 ON
-        any_enabled = any(b.get('enabled', False) for b in boats)
-        
-        for boat in boats:
+
+        # 현재 visible 중 ON인 선박이 있으면 전체 OFF, 없으면 전체 ON
+        any_enabled = any(b.get('enabled', False) for b in visible)
+
+        for boat in visible:
             boat['enabled'] = not any_enabled
-            boat['mode'] = 'monitor' if not any_enabled else 'off'  # 전체선택은 녹색(모니터링)
-        
+            boat['mode'] = 'monitor' if not any_enabled else 'off'
+
         self.refresh_boat_grid()
-        self.save_config_quietly()  # 자동 저장
-        
+        self.save_config_quietly()
+
         status = "OFF" if any_enabled else "ON"
         self.log_msg(f"☑ 전체 선박 {status}")
     
@@ -1808,8 +1885,6 @@ class FishingBoatMonitorApp:
     
     def open_boat_site(self):
         """활성화된 모든 선박의 캘린더 사이트 열기"""
-        import webbrowser
-        
         boats = self.get_current_boats()
         enabled_boats = [b for b in boats if b.get('enabled', False)]
         
@@ -1819,15 +1894,15 @@ class FishingBoatMonitorApp:
         
         year = self.entry_year.get()
         month = self.selected_site_month.get()
-        platform = self.config.get('current_platform', 'thefishing')
+        platform = self.current_platform
         
         opened_count = 0
         for boat in enabled_boats:
             if platform == 'thefishing':
-                url = f"{boat['base_url']}?mid=bk&year={year}&month={month}&day=01&mode=cal&PA_N_UID={boat['pa_n_uid']}#list"
+                url = FishingBoatMonitor.build_calendar_url(boat['base_url'], boat['pa_n_uid'], year, month)
             else:  # sunsang24
-                url = f"{boat['base_url']}/ship/schedule_fleet/{year}{month}"
-            
+                url = FishingBoatMonitor.build_schedule_url(boat['base_url'], year, month)
+
             webbrowser.open(url)
             opened_count += 1
         
@@ -1839,10 +1914,8 @@ class FishingBoatMonitorApp:
         
         # 버튼 색상 업데이트
         for ms, btn in self.month_buttons.items():
-            if ms == month_str:
-                btn.config(bg="#4CAF50", fg="white")
-            else:
-                btn.config(bg="SystemButtonFace", fg="black")
+            bg, fg = _toggle_colors(ms == month_str)
+            btn.config(bg=bg, fg=fg)
     
     def log_msg(self, msg):
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -1877,23 +1950,26 @@ class FishingBoatMonitorApp:
             return
         
         # 두 플랫폼에서 활성화된 선박 체크
-        thefishing_enabled = [b for b in config.get('thefishing_boats', []) if b.get('enabled', False)]
-        sunsang24_enabled = [b for b in config.get('sunsang24_boats', []) if b.get('enabled', False)]
-        enabled_boats = thefishing_enabled + sunsang24_enabled
-        
-        if not enabled_boats:
+        enabled_by_platform = {
+            pk: [b for b in config.get(pk, []) if b.get('enabled', False)]
+            for pk in PLATFORM_KEYS
+        }
+        total_enabled = sum(len(v) for v in enabled_by_platform.values())
+
+        if total_enabled == 0:
             messagebox.showwarning("경고", "활성화된 선박이 없습니다.")
             return
-        
+
         self.btn_start.config(state="disabled")
         self.btn_stop.config(state="normal")
-        
+
         self.log_msg("")
         self.log_msg("🚀 모니터링 시작!")
-        if thefishing_enabled:
-            self.log_msg(f"🎣 [더피싱] {len(thefishing_enabled)}개: {[b['name'] for b in thefishing_enabled]}")
-        if sunsang24_enabled:
-            self.log_msg(f"⛵ [선상24] {len(sunsang24_enabled)}개: {[b['name'] for b in sunsang24_enabled]}")
+        for pk in PLATFORM_KEYS:
+            boats_list = enabled_by_platform[pk]
+            if boats_list:
+                icon = PLATFORM_KEY_ICONS.get(pk, '🚢')
+                self.log_msg(f"{icon} [{PLATFORM_KEY_NAMES[pk]}] {len(boats_list)}개: {[b['name'] for b in boats_list]}")
         self.log_msg(f"📅 월: {config['target_months']}")
         self.log_msg(f"📆 날짜: {config['target_days']}")
         
@@ -1921,14 +1997,14 @@ class FishingBoatMonitorApp:
             ctypes.windll.user32.ShowWindow(hwnd, 0)
             try:
                 ctypes.windll.kernel32.FreeConsole()
-            except:
+            except Exception:
                 pass
-    
+
     def show_console(self):
         """콘솔 창 보이기"""
         try:
             ctypes.windll.kernel32.AllocConsole()
-        except:
+        except Exception:
             pass
         hwnd = self.get_console_window()
         if hwnd:
@@ -1949,9 +2025,6 @@ class FishingBoatMonitorApp:
         if not TRAY_AVAILABLE:
             self.log_msg("⚠️ 트레이 기능 사용 불가")
             return
-        
-        if not hasattr(self, 'tray_icon'):
-            self.tray_icon = None
         
         self.root.withdraw()
         self.hide_console()
@@ -1975,7 +2048,7 @@ class FishingBoatMonitorApp:
     
     def show_from_tray(self, icon=None, item=None):
         """트레이에서 복원"""
-        if hasattr(self, 'tray_icon') and self.tray_icon:
+        if self.tray_icon:
             self.tray_icon.stop()
             self.tray_icon = None
         
@@ -1988,9 +2061,9 @@ class FishingBoatMonitorApp:
         if self.monitor:
             self.monitor.stop()
         
-        if hasattr(self, 'tray_icon') and self.tray_icon:
+        if self.tray_icon:
             self.tray_icon.stop()
-        
+
         self.root.after(0, self.root.destroy)
 
 # ============================================

@@ -1,0 +1,17 @@
+✅ [26-03-03┃17:24:55] 2bf5e98 — 선상24 schedule_fleet 예약확인 + 더피싱 2step 타임아웃 버그 수정
+✅ [26-02-24┃00:39:14] 8808cf7 — Revert hermes BASE_URL to http:// (auto-upgrade handles https)
+✅ [26-02-24┃00:28:45] a1325cf — Fix 2step+seat 예약 실패: HTTP→HTTPS 자동 업그레이드 + 2step AJAX 추가
+✅ [26-02-23┃23:50:37] 93f7a6c — Remove debug logging: Step 2 HTML save and session cookie output
+✅ [26-02-23┃23:46:06] 42ea184 — Fix 3step reservation: Add popup.step1.ajax.php AJAX call
+✅ [26-02-20┃06:57:43] 260e72d — 테스트 모드 로그 저장 지원 및 경로 안정화
+✅ [26-02-20┃06:27:20] d72f8db — Add file logging to API bots & update fishing_bot content
+✅ [26-02-05┃21:00:08] db3a2e3 — Update fishing_bot content
+✅ [26-02-03┃08:27:58] 0ec8d7c — Fix CheongNamHoBot: Reorder Step 2 wait/submit logic to prevent variable error
+✅ [26-02-03┃08:18:39] 2cdc97d — Update JanghyunBot & TeammansuBot: Apply 3s timeout & background rescue optimization
+✅ [26-02-03┃08:09:19] c5c7575 — Update CheongNamHoBot: optimize Step 2 wait/rescue strategies and fix TeammansuBot class name
+✅ [26-02-03┃07:30:46] f457f16 — Update ManseokBot: optimize Step 2 wait (2s) and add background rescue logic
+✅ [26-02-02┃21:33:38] 8ddd007 — Update Fishing Bots (Kkambo, Vienna, HighFishing) and Launcher
+✅ [26-01-26┃18:10:18] 37b565e — Optimize all bots: Fast Recovery, Unify 502 delay, Launcher Input Validation
+✅ [26-01-26┃17:05:59] a514be5 — Update AkbariHo mapping, Launcher ports, and ManseokHo error logic
+✅ [26-01-25┃23:19:12] 10dc90c — Update depositor logic and standardize input sleep across bots
+✅ [26-01-25┃21:25:30] 05f9b5e — Initial backup

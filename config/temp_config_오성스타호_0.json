@@ -65,5 +65,16 @@
     "test_mode": false,
     "simulation_mode": false,
     "early_monitor": false,
-    "bot_mode": "API"
+    "bot_mode": "API",
+    "target_date": "20261022",
+    "person_count": "1",
+    "user_name": "이정호",
+    "user_depositor": "",
+    "user_phone": "010-8356-5426",
+    "port": "홍원항",
+    "provider": "오성스타호",
+    "window_x": 0,
+    "window_y": 0,
+    "window_width": 2560,
+    "window_height": 1392
 }

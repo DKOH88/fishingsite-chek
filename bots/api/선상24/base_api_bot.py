@@ -930,7 +930,6 @@ class SunSang24APIBot:
 
                             elif result == "RETRY_IMMEDIATE":
                                 self._log(f"🔄 [재시도] 즉시 재시도...")
-                                session = self.build_session()
                                 continue
 
                             else:
@@ -940,10 +939,8 @@ class SunSang24APIBot:
 
                         except requests.exceptions.Timeout:
                             self._log(f"❌ [타임아웃] 재시도...")
-                            session = self.build_session()
                         except requests.exceptions.ConnectionError:
-                            self._log(f"❌ [연결실패] 세션 재생성...")
-                            session = self.build_session()
+                            self._log(f"❌ [연결실패] 재시도...")
                         except Exception as e:
                             self._log(f"❌ [예외] {e}")
 
