@@ -35,7 +35,9 @@ class SunSang24APIBot:
     SEAT_PRIORITY = []      # 좌석 우선순위 (좌석 선택 선사용)
 
     # 네트워크 설정
-    REQUEST_TIMEOUT = (5, 10)
+    REQUEST_TIMEOUT = (5, 10)  # legacy fallback for subclasses overriding the old single-timeout setting
+    GET_REQUEST_TIMEOUT = (3, 7)
+    POST_REQUEST_TIMEOUT = (5, 10)
     MAX_TOTAL_RETRIES = 5000
     MAX_RESERVATION_RETRIES = 5
 
@@ -551,7 +553,8 @@ class SunSang24APIBot:
 
         try:
             if not initial_html:
-                r = session.get(url, timeout=self.REQUEST_TIMEOUT)
+                get_timeout = getattr(self, "GET_REQUEST_TIMEOUT", self.REQUEST_TIMEOUT)
+                r = session.get(url, timeout=get_timeout)
                 step_duration = time.time() - step_start
                 self._log(f"✅ 응답 수신: Status={r.status_code}, Size={len(r.text)}bytes")
 
@@ -723,7 +726,8 @@ class SunSang24APIBot:
         })
 
         try:
-            res = session.post(reservation_url, data=payload, timeout=self.REQUEST_TIMEOUT)
+            post_timeout = getattr(self, "POST_REQUEST_TIMEOUT", self.REQUEST_TIMEOUT)
+            res = session.post(reservation_url, data=payload, timeout=post_timeout)
             http_duration = time.time() - step_start
             total_time = time.time() - self.timer_start if self.timer_start else 0
 
