@@ -763,6 +763,16 @@ class SunSang24APIBot:
                         return True
 
                     response_message = result.get("message", "")
+                    if response_code is None and response_message:
+                        clean_message = response_message.replace('\n', ' | ')
+
+                        if "메세지 템플릿이 존재하지 않습니다." in response_message:
+                            self._log(f"❌ [결과] 예약 실패 - 서버 메시지: {clean_message}")
+                            return "RETRY_IMMEDIATE"
+
+                        self._log(f"⚠️ [경고] 코드 없는 서버 메시지 응답: {clean_message}")
+                        return "RETRY_IMMEDIATE"
+
                     if response_code:
                         error_msg = response_message.replace('\n', ' | ')
                         self._log(f"❌ [결과] 예약 실패 - 코드: {response_code}")
